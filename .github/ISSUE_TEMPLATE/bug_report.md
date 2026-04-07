@@ -20,6 +20,9 @@ assignees: ''
 ## 실제 동작
 <!-- 실제로 어떻게 동작하는지 설명해주세요 -->
 
+## 브랜치명
+`bugfix/` <!-- 예: bugfix/auth-token-expired -->
+
 ## 환경
 - OS:
 - JDK:

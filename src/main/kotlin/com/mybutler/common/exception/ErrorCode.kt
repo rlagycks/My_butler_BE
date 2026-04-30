@@ -31,6 +31,13 @@ enum class ErrorCode(
     INGREDIENT_NOT_FOUND(HttpStatus.NOT_FOUND, "INGREDIENT_001", "재료를 찾을 수 없습니다."),
     INGREDIENT_ALREADY_EXISTS(HttpStatus.CONFLICT, "INGREDIENT_002", "이미 등록된 재료입니다."),
 
+    // My Bar (Inventory)
+    INVENTORY_NOT_FOUND(HttpStatus.NOT_FOUND, "INVENTORY_001", "재고를 찾을 수 없습니다."),
+    INVENTORY_ACCESS_DENIED(HttpStatus.FORBIDDEN, "INVENTORY_002", "해당 재고에 접근할 권한이 없습니다."),
+    INVENTORY_ALREADY_OPENED(HttpStatus.CONFLICT, "INVENTORY_003", "이미 열려 있는 재고입니다."),
+    INVENTORY_INVALID_CATEGORY(HttpStatus.BAD_REQUEST, "INVENTORY_004", "유효하지 않은 재고 카테고리입니다."),
+    INVENTORY_OCR_FAILED(HttpStatus.UNPROCESSABLE_ENTITY, "INVENTORY_005", "재고 OCR 처리에 실패했습니다."),
+
     // Recipe
     RECIPE_NOT_FOUND(HttpStatus.NOT_FOUND, "RECIPE_001", "레시피를 찾을 수 없습니다."),
 

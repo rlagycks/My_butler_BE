@@ -15,6 +15,7 @@ import jakarta.persistence.JoinColumn
 import jakarta.persistence.OneToMany
 import jakarta.persistence.OrderBy
 import jakarta.persistence.Table
+import org.hibernate.annotations.BatchSize
 import org.hibernate.annotations.CreationTimestamp
 import org.hibernate.annotations.UpdateTimestamp
 import java.math.BigDecimal
@@ -69,14 +70,17 @@ class Recipe(
     @CollectionTable(name = "recipe_taste_tags", joinColumns = [JoinColumn(name = "recipe_id")])
     @Column(name = "taste_tag", length = 32)
     @Enumerated(EnumType.STRING)
+    @BatchSize(size = 100)
     var tasteTags: MutableSet<TasteTag> = mutableSetOf(),
 
     @OneToMany(mappedBy = "recipe", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("displayOrder ASC")
+    @BatchSize(size = 100)
     val ingredients: MutableList<RecipeIngredient> = mutableListOf(),
 
     @OneToMany(mappedBy = "recipe", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("stepOrder ASC")
+    @BatchSize(size = 100)
     val steps: MutableList<RecipeStep> = mutableListOf(),
 
     @CreationTimestamp

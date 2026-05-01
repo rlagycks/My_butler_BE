@@ -15,6 +15,7 @@ import com.mybutler.recipe.entity.RecipeCategory
 import com.mybutler.recipe.entity.RecipeIngredient
 import com.mybutler.recipe.entity.TasteTag
 import com.mybutler.recipe.repository.RecipeRepository
+import com.mybutler.recipe.service.BaseRecipeLoader
 import com.mybutler.recipe.service.RecipeService
 import com.mybutler.user.repository.UserPreferenceRepository
 import jakarta.persistence.EntityManager
@@ -29,8 +30,6 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.given
 import org.mockito.kotlin.verify
-import org.springframework.data.domain.PageImpl
-import org.springframework.data.domain.Pageable
 import java.util.Optional
 
 @ExtendWith(MockitoExtension::class)
@@ -40,12 +39,13 @@ class RecipeServiceTest {
     @Mock lateinit var inventoryItemRepository: InventoryItemRepository
     @Mock lateinit var userPreferenceRepository: UserPreferenceRepository
     @Mock lateinit var entityManager: EntityManager
+    @Mock lateinit var baseRecipeLoader: BaseRecipeLoader
 
     private lateinit var recipeService: RecipeService
 
     @BeforeEach
     fun setUp() {
-        recipeService = RecipeService(recipeRepository, inventoryItemRepository, userPreferenceRepository, entityManager)
+        recipeService = RecipeService(recipeRepository, inventoryItemRepository, userPreferenceRepository, entityManager, baseRecipeLoader)
     }
 
     @Test
@@ -181,7 +181,7 @@ class RecipeServiceTest {
         val userId = 1L
 
         given(inventoryItemRepository.findAllByUserId(userId)).willReturn(emptyList())
-        given(recipeRepository.findByIsCustomFalse(any<Pageable>())).willReturn(PageImpl(emptyList()))
+        given(baseRecipeLoader.loadAll()).willReturn(emptyList())
         given(userPreferenceRepository.findByUserId(userId)).willReturn(Optional.empty())
 
         val result = recipeService.getHome(userId)
@@ -199,7 +199,7 @@ class RecipeServiceTest {
         val ginRecipe = recipe(id = 2L, ingredients = listOf("Gin", "Tonic"))
 
         given(inventoryItemRepository.findAllByUserId(userId)).willReturn(inventoryItems)
-        given(recipeRepository.findByIsCustomFalse(any<Pageable>())).willReturn(PageImpl(listOf(whiskeyRecipe, ginRecipe)))
+        given(baseRecipeLoader.loadAll()).willReturn(listOf(whiskeyRecipe, ginRecipe))
 
         val result = recipeService.getInventoryRecommendations(userId)
 

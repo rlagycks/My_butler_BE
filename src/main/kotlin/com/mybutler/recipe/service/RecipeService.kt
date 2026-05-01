@@ -19,7 +19,6 @@ import com.mybutler.recipe.entity.RecipeStep
 import com.mybutler.recipe.repository.RecipeRepository
 import com.mybutler.user.repository.UserPreferenceRepository
 import jakarta.persistence.EntityManager
-import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
@@ -32,13 +31,11 @@ class RecipeService(
     private val inventoryItemRepository: InventoryItemRepository,
     private val userPreferenceRepository: UserPreferenceRepository,
     private val entityManager: EntityManager,
+    private val baseRecipeLoader: BaseRecipeLoader,
 ) {
-    companion object {
-        private const val MAX_BASE_RECIPES = 500
-    }
     fun getHome(userId: Long): RecipeHomeResponse {
         val inventoryItems = inventoryItemRepository.findAllByUserId(userId)
-        val allBaseRecipes = recipeRepository.findByIsCustomFalse(PageRequest.of(0, MAX_BASE_RECIPES)).content
+        val allBaseRecipes = baseRecipeLoader.loadAll()
 
         val (available, nearlyAvailable) = RecipeMatchingService.partition(allBaseRecipes, inventoryItems)
 
@@ -75,7 +72,7 @@ class RecipeService(
 
     fun getInventoryRecommendations(userId: Long): RecipeRecommendationResponse {
         val inventoryItems = inventoryItemRepository.findAllByUserId(userId)
-        val allBaseRecipes = recipeRepository.findByIsCustomFalse(PageRequest.of(0, MAX_BASE_RECIPES)).content
+        val allBaseRecipes = baseRecipeLoader.loadAll()
         val (available, nearlyAvailable) = RecipeMatchingService.partition(allBaseRecipes, inventoryItems)
         return RecipeRecommendationResponse(
             availableRecipes = available.map { RecipeSummaryResponse.from(it.recipe) },
@@ -85,7 +82,7 @@ class RecipeService(
 
     fun getPreferenceRecommendations(userId: Long): List<RecipeSummaryResponse> {
         val preference = userPreferenceRepository.findByUserId(userId).orElse(null)
-        val allBaseRecipes = recipeRepository.findByIsCustomFalse(PageRequest.of(0, MAX_BASE_RECIPES)).content
+        val allBaseRecipes = baseRecipeLoader.loadAll()
         val recommended = RecipeRecommendationService.recommend(
             recipes = allBaseRecipes,
             tasteTags = preference?.tastePreferences ?: emptySet(),

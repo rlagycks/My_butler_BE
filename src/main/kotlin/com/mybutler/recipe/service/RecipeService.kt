@@ -9,6 +9,7 @@ import com.mybutler.recipe.dto.RecipeHomeResponse
 import com.mybutler.recipe.dto.RecipePageResponse
 import com.mybutler.recipe.dto.RecipeRecommendationResponse
 import com.mybutler.recipe.dto.RecipeSummaryResponse
+import com.mybutler.recipe.dto.StepRequest
 import com.mybutler.recipe.dto.UpdateRecipeRequest
 import com.mybutler.recipe.entity.BaseSpirit
 import com.mybutler.recipe.entity.Recipe
@@ -114,6 +115,8 @@ class RecipeService(
             authorId = userId,
         )
 
+        validateStepOrders(request.steps)
+
         request.ingredients.forEach { req ->
             recipe.ingredients.add(
                 RecipeIngredient(
@@ -144,6 +147,8 @@ class RecipeService(
     fun update(userId: Long, recipeId: Long, request: UpdateRecipeRequest): RecipeDetailResponse {
         val recipe = findOwnedCustom(userId, recipeId, ErrorCode.RECIPE_BASE_NOT_UPDATABLE)
 
+        validateStepOrders(request.steps)
+
         recipe.name = request.name
         recipe.description = request.description
         recipe.category = request.category
@@ -154,7 +159,9 @@ class RecipeService(
         recipe.tasteTags = request.tasteTags.toMutableSet()
 
         recipe.ingredients.clear()
+        recipe.steps.clear()
         entityManager.flush()
+
         request.ingredients.forEach { req ->
             recipe.ingredients.add(
                 RecipeIngredient(
@@ -167,8 +174,6 @@ class RecipeService(
             )
         }
 
-        recipe.steps.clear()
-        entityManager.flush()
         request.steps.forEach { req ->
             recipe.steps.add(
                 RecipeStep(
@@ -186,6 +191,13 @@ class RecipeService(
     fun delete(userId: Long, recipeId: Long) {
         val recipe = findOwnedCustom(userId, recipeId)
         recipeRepository.delete(recipe)
+    }
+
+    private fun validateStepOrders(steps: List<StepRequest>) {
+        val orders = steps.map { it.stepOrder }
+        if (orders.size != orders.toSet().size) {
+            throw BusinessException(ErrorCode.RECIPE_STEP_ORDER_DUPLICATE)
+        }
     }
 
     private fun findOwnedCustom(

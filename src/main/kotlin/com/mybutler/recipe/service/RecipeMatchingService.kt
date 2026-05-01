@@ -12,11 +12,13 @@ data class RecipeMatchResult(
 object RecipeMatchingService {
     private const val NEARLY_AVAILABLE_MAX_MISSING = 2
 
-    fun match(recipe: Recipe, inventoryItems: List<InventoryItem>): RecipeMatchResult {
-        val inventoryNames = inventoryItems.map { it.name.lowercase() }.toSet()
+    fun match(recipe: Recipe, inventoryItems: List<InventoryItem>): RecipeMatchResult =
+        match(recipe, inventoryItems.toInventoryNameSet())
+
+    fun match(recipe: Recipe, inventoryNames: Set<String>): RecipeMatchResult {
         val missing = recipe.ingredients.filter { ingredient ->
-            val ingredientLower = ingredient.name.lowercase()
-            inventoryNames.none { inv -> inv.contains(ingredientLower) || ingredientLower.contains(inv) }
+            val ingredientWords = ingredient.name.lowercase().toWordSet()
+            inventoryNames.none { inv -> (inv.toWordSet() intersect ingredientWords).isNotEmpty() }
         }
         return RecipeMatchResult(
             recipe = recipe,
@@ -29,9 +31,16 @@ object RecipeMatchingService {
         recipes: List<Recipe>,
         inventoryItems: List<InventoryItem>,
     ): Pair<List<RecipeMatchResult>, List<RecipeMatchResult>> {
-        val results = recipes.map { match(it, inventoryItems) }
+        val inventoryNames = inventoryItems.toInventoryNameSet()
+        val results = recipes.map { match(it, inventoryNames) }
         val available = results.filter { it.missingCount == 0 }
         val nearlyAvailable = results.filter { it.missingCount in 1..NEARLY_AVAILABLE_MAX_MISSING }
         return available to nearlyAvailable
     }
+
+    private fun List<InventoryItem>.toInventoryNameSet(): Set<String> =
+        map { it.name.lowercase() }.toSet()
+
+    private fun String.toWordSet(): Set<String> =
+        split(Regex("\\s+")).toSet()
 }

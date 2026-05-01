@@ -15,10 +15,9 @@ object RecipeRecommendationService {
 
     fun score(
         recipe: Recipe,
-        tasteTags: Set<TastePreference>,
+        mappedTasteTags: Set<TasteTag>,
         preferredAbv: PreferredAbv?,
     ): Int {
-        val mappedTasteTags = tasteTags.map { it.toTasteTag() }.toSet()
         val tasteScore = recipe.tasteTags.intersect(mappedTasteTags).size
 
         val abvScore = if (preferredAbv != null) {
@@ -39,8 +38,9 @@ object RecipeRecommendationService {
         limit: Int = 10,
     ): List<Recipe> {
         if (tasteTags.isEmpty() && preferredAbv == null) return recipes.take(limit)
+        val mappedTasteTags = tasteTags.map { it.toTasteTag() }.toSet()
         return recipes
-            .map { recipe -> recipe to score(recipe, tasteTags, preferredAbv) }
+            .map { recipe -> recipe to score(recipe, mappedTasteTags, preferredAbv) }
             .filter { (_, score) -> score > 0 }
             .sortedByDescending { (_, score) -> score }
             .take(limit)

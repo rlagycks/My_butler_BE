@@ -88,7 +88,7 @@ class RecipeRecommendationServiceTest {
 
         val score = RecipeRecommendationService.score(
             recipe = r,
-            tasteTags = setOf(TastePreference.SWEET, TastePreference.BITTER),
+            mappedTasteTags = setOf(TasteTag.SWEET, TasteTag.BITTER),
             preferredAbv = PreferredAbv.LOW,
         )
 

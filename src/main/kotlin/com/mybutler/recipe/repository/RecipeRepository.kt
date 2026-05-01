@@ -3,7 +3,6 @@ package com.mybutler.recipe.repository
 import com.mybutler.recipe.entity.BaseSpirit
 import com.mybutler.recipe.entity.Recipe
 import com.mybutler.recipe.entity.RecipeCategory
-import com.mybutler.recipe.entity.TasteTag
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
@@ -44,17 +43,6 @@ interface RecipeRepository : JpaRepository<Recipe, Long> {
         keyword: String?,
         pageable: Pageable,
     ): Page<Recipe>
-
-    @Query(
-        """
-        SELECT r FROM Recipe r
-        WHERE r.isCustom = false
-          AND EXISTS (
-              SELECT 1 FROM r.tasteTags t WHERE t IN :tasteTags
-          )
-        """,
-    )
-    fun findBaseRecipesWithTasteTags(tasteTags: Set<TasteTag>): List<Recipe>
 
     fun findByIsCustomTrueAndAuthorId(authorId: Long, pageable: Pageable): Page<Recipe>
 }

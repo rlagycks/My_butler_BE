@@ -49,7 +49,6 @@ class InventoryServiceTest {
             levelStatus = LevelStatus.FULL,
             purchasePrice = 49000,
             isOpened = false,
-            openedAt = LocalDateTime.now().minusDays(2),
         )
         val savedItem = inventoryItem(
             id = 100L,
@@ -79,9 +78,8 @@ class InventoryServiceTest {
     }
 
     @Test
-    fun `create - 개봉 재고 생성 시 openedAt 포함 반환`() {
+    fun `create - 개봉 재고 생성 시 openedAt 자동 설정`() {
         val userId = 1L
-        val openedAt = LocalDateTime.now().minusDays(5)
         val request = CreateInventoryItemRequest(
             name = "Bombay Sapphire",
             category = Category.GIN,
@@ -90,7 +88,6 @@ class InventoryServiceTest {
             levelStatus = LevelStatus.HALF,
             purchasePrice = 42000,
             isOpened = true,
-            openedAt = openedAt,
         )
         val savedItem = inventoryItem(
             id = 101L,
@@ -102,7 +99,7 @@ class InventoryServiceTest {
             levelStatus = request.levelStatus,
             purchasePrice = request.purchasePrice,
             isOpened = true,
-            openedAt = openedAt,
+            openedAt = LocalDateTime.now(),
         )
         val itemCaptor = argumentCaptor<InventoryItem>()
 
@@ -112,10 +109,9 @@ class InventoryServiceTest {
 
         verify(inventoryItemRepository).save(itemCaptor.capture())
         assertThat(itemCaptor.firstValue.isOpened).isTrue()
-        assertThat(itemCaptor.firstValue.openedAt).isEqualTo(openedAt)
+        assertThat(itemCaptor.firstValue.openedAt).isNotNull()
         assertThat(result.isOpened).isTrue()
-        assertThat(result.openedAt).isEqualTo(openedAt)
-        assertThat(result.expiryStatus).isEqualTo(ExpiryStatus.DANGER)
+        assertThat(result.openedAt).isNotNull()
     }
 
     @Test
@@ -136,7 +132,6 @@ class InventoryServiceTest {
         val result = inventoryService.getDetail(userId, itemId)
 
         assertThat(result.id).isEqualTo(itemId)
-        assertThat(result.userId).isEqualTo(userId)
         assertThat(result.name).isEqualTo(item.name)
         assertThat(result.category).isEqualTo(Category.RUM)
         assertThat(result.expiryStatus).isEqualTo(ExpiryStatus.NORMAL)
@@ -195,7 +190,6 @@ class InventoryServiceTest {
             levelStatus = LevelStatus.FULL,
             purchasePrice = 78000,
             isOpened = false,
-            openedAt = LocalDateTime.now().minusDays(1),
         )
 
         given(inventoryItemRepository.findById(itemId)).willReturn(Optional.of(item))
@@ -327,16 +321,13 @@ class InventoryServiceTest {
 
         val result = inventoryService.getInsights(userId)
 
-        assertThat(result.totalCount).isEqualTo(4)
-        assertThat(result.openedCount).isEqualTo(3)
-        assertThat(result.unopenedCount).isEqualTo(1)
-        assertThat(result.dangerCount).isEqualTo(1)
-        assertThat(result.warningCount).isEqualTo(1)
-        assertThat(result.normalCount).isEqualTo(1)
+        assertThat(result.totalItemCount).isEqualTo(4)
+        assertThat(result.expiryWarningCount).isEqualTo(2)
         assertThat(result.availableRecipeCount).isEqualTo(0)
-        assertThat(result.categoryCounts.associate { it.category to it.count }).containsEntry(Category.WHISKEY, 2L)
-        assertThat(result.categoryCounts.associate { it.category to it.count }).containsEntry(Category.GIN, 1L)
-        assertThat(result.categoryCounts.associate { it.category to it.count }).containsEntry(Category.RUM, 1L)
+        assertThat(result.categoryBreakdown.associate { it.category to it.count }).containsEntry(Category.WHISKEY, 2L)
+        assertThat(result.categoryBreakdown.associate { it.category to it.count }).containsEntry(Category.GIN, 1L)
+        assertThat(result.categoryBreakdown.associate { it.category to it.count }).containsEntry(Category.RUM, 1L)
+        assertThat(result.expiryWarningItems).hasSize(2)
     }
 
     private fun inventoryItem(

@@ -47,8 +47,11 @@ class InventoryController(
     @GetMapping("/home")
     fun getHome(
         @AuthenticationPrincipal userDetails: CustomUserDetails,
+        @ParameterObject
+        @PageableDefault(size = 20, sort = ["createdAt"], direction = Sort.Direction.DESC)
+        pageable: Pageable,
     ): ApiResponse<InventoryHomeResponse> {
-        return ApiResponse.ok(inventoryService.getHome(userDetails.userId))
+        return ApiResponse.ok(inventoryService.getHome(userDetails.userId, pageable))
     }
 
     @Operation(summary = "재고 목록 조회")
@@ -94,12 +97,12 @@ class InventoryController(
 
     @Operation(summary = "재고 삭제")
     @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     fun delete(
         @AuthenticationPrincipal userDetails: CustomUserDetails,
         @PathVariable id: Long,
-    ): ApiResponse<Unit> {
+    ) {
         inventoryService.delete(userDetails.userId, id)
-        return ApiResponse.ok()
     }
 
     @Operation(summary = "개봉 처리")

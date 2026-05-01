@@ -9,7 +9,6 @@ import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Size
 import java.math.BigDecimal
-import java.time.LocalDateTime
 
 data class CreateInventoryItemRequest(
     @field:NotBlank
@@ -33,8 +32,6 @@ data class CreateInventoryItemRequest(
     val purchasePrice: Int? = null,
 
     val isOpened: Boolean = false,
-
-    val openedAt: LocalDateTime? = null,
 )
 
 data class UpdateInventoryItemRequest(
@@ -59,8 +56,6 @@ data class UpdateInventoryItemRequest(
     val purchasePrice: Int? = null,
 
     val isOpened: Boolean = false,
-
-    val openedAt: LocalDateTime? = null,
 )
 
 data class UpdateInventoryLevelRequest(

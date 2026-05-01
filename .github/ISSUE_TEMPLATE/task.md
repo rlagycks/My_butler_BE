@@ -13,6 +13,9 @@ assignees: ''
 - [ ] 
 - [ ] 
 
+## 브랜치명
+`chore/` <!-- 예: chore/setup-github-actions -->
+
 ## 완료 조건
 <!-- 이 이슈가 완료되었다고 볼 수 있는 기준 -->
 

@@ -16,5 +16,8 @@ assignees: ''
 - [ ] 
 - [ ] 
 
+## 브랜치명
+`feature/` <!-- 예: feature/auth-kakao-login -->
+
 ## 참고 사항
 <!-- 관련 이슈, 참고 자료 등 -->

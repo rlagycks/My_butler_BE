@@ -70,17 +70,17 @@ class Recipe(
     @CollectionTable(name = "recipe_taste_tags", joinColumns = [JoinColumn(name = "recipe_id")])
     @Column(name = "taste_tag", length = 32)
     @Enumerated(EnumType.STRING)
-    @BatchSize(size = 100)
+    @BatchSize(size = BATCH_SIZE)
     var tasteTags: MutableSet<TasteTag> = mutableSetOf(),
 
     @OneToMany(mappedBy = "recipe", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("displayOrder ASC")
-    @BatchSize(size = 100)
+    @BatchSize(size = BATCH_SIZE)
     val ingredients: MutableList<RecipeIngredient> = mutableListOf(),
 
     @OneToMany(mappedBy = "recipe", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("stepOrder ASC")
-    @BatchSize(size = 100)
+    @BatchSize(size = BATCH_SIZE)
     val steps: MutableList<RecipeStep> = mutableListOf(),
 
     @CreationTimestamp
@@ -90,7 +90,11 @@ class Recipe(
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     var updatedAt: LocalDateTime = LocalDateTime.now(),
-)
+) {
+    companion object {
+        const val BATCH_SIZE = 100
+    }
+}
 
 enum class RecipeCategory {
     CLASSIC,

@@ -15,6 +15,7 @@ import com.mybutler.recipe.entity.RecipeCategory
 import com.mybutler.recipe.entity.RecipeIngredient
 import com.mybutler.recipe.entity.TasteTag
 import com.mybutler.recipe.repository.RecipeRepository
+import com.mybutler.common.storage.StorageService
 import com.mybutler.recipe.service.BaseRecipeLoader
 import com.mybutler.recipe.service.RecipeService
 import com.mybutler.user.repository.UserPreferenceRepository
@@ -30,6 +31,7 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.given
 import org.mockito.kotlin.verify
+import org.springframework.mock.web.MockMultipartFile
 import java.util.Optional
 
 @ExtendWith(MockitoExtension::class)
@@ -40,12 +42,13 @@ class RecipeServiceTest {
     @Mock lateinit var userPreferenceRepository: UserPreferenceRepository
     @Mock lateinit var entityManager: EntityManager
     @Mock lateinit var baseRecipeLoader: BaseRecipeLoader
+    @Mock lateinit var storageService: StorageService
 
     private lateinit var recipeService: RecipeService
 
     @BeforeEach
     fun setUp() {
-        recipeService = RecipeService(recipeRepository, inventoryItemRepository, userPreferenceRepository, entityManager, baseRecipeLoader)
+        recipeService = RecipeService(recipeRepository, inventoryItemRepository, userPreferenceRepository, entityManager, baseRecipeLoader, storageService)
     }
 
     @Test
@@ -207,12 +210,72 @@ class RecipeServiceTest {
         assertThat(result.nearlyAvailableRecipes.map { it.id }).containsExactly(2L)
     }
 
+    @Test
+    fun `uploadThumbnail - 썸네일 업로드 후 URL 반환`() {
+        val userId = 1L
+        val recipeId = 1L
+        val customRecipe = recipe(id = recipeId, isCustom = true, authorId = userId)
+        val file = MockMultipartFile("file", "thumb.jpg", "image/jpeg", "data".toByteArray())
+
+        given(recipeRepository.findById(recipeId)).willReturn(Optional.of(customRecipe))
+        given(storageService.upload(any(), any())).willReturn("recipes/thumbnails/uuid.jpg")
+
+        val result = recipeService.uploadThumbnail(userId, recipeId, file)
+
+        assertThat(result.thumbnailUrl).isEqualTo("recipes/thumbnails/uuid.jpg")
+        verify(storageService).upload(file, "recipes/thumbnails")
+    }
+
+    @Test
+    fun `uploadThumbnail - 기존 썸네일 있으면 삭제 후 새 URL 저장`() {
+        val userId = 1L
+        val recipeId = 1L
+        val customRecipe = recipe(id = recipeId, isCustom = true, authorId = userId, thumbnailUrl = "recipes/thumbnails/old.jpg")
+        val file = MockMultipartFile("file", "new.jpg", "image/jpeg", "data".toByteArray())
+
+        given(recipeRepository.findById(recipeId)).willReturn(Optional.of(customRecipe))
+        given(storageService.upload(any(), any())).willReturn("recipes/thumbnails/new-uuid.jpg")
+
+        recipeService.uploadThumbnail(userId, recipeId, file)
+
+        verify(storageService).delete("recipes/thumbnails/old.jpg")
+        verify(storageService).upload(file, "recipes/thumbnails")
+    }
+
+    @Test
+    fun `uploadThumbnail - 존재하지 않는 레시피 RECIPE_NOT_FOUND 예외`() {
+        given(recipeRepository.findById(any())).willReturn(Optional.empty())
+        val file = MockMultipartFile("file", "thumb.jpg", "image/jpeg", "data".toByteArray())
+
+        val ex = assertThrows<BusinessException> {
+            recipeService.uploadThumbnail(1L, 999L, file)
+        }
+
+        assertThat(ex.errorCode).isEqualTo(ErrorCode.RECIPE_NOT_FOUND)
+    }
+
+    @Test
+    fun `uploadThumbnail - 다른 사용자의 레시피 RECIPE_ACCESS_DENIED 예외`() {
+        val recipeId = 1L
+        val customRecipe = recipe(id = recipeId, isCustom = true, authorId = 2L)
+        val file = MockMultipartFile("file", "thumb.jpg", "image/jpeg", "data".toByteArray())
+
+        given(recipeRepository.findById(recipeId)).willReturn(Optional.of(customRecipe))
+
+        val ex = assertThrows<BusinessException> {
+            recipeService.uploadThumbnail(userId = 1L, recipeId = recipeId, file = file)
+        }
+
+        assertThat(ex.errorCode).isEqualTo(ErrorCode.RECIPE_ACCESS_DENIED)
+    }
+
     private fun recipe(
         id: Long = 1L,
         name: String = "Test Recipe",
         isCustom: Boolean = false,
         authorId: Long? = null,
         ingredients: List<String> = emptyList(),
+        thumbnailUrl: String? = null,
     ): Recipe {
         val r = Recipe(
             id = id,
@@ -220,6 +283,7 @@ class RecipeServiceTest {
             category = RecipeCategory.CLASSIC,
             isCustom = isCustom,
             authorId = authorId,
+            thumbnailUrl = thumbnailUrl,
         )
         ingredients.forEachIndexed { i, ingredientName ->
             r.ingredients.add(RecipeIngredient(recipe = r, name = ingredientName, displayOrder = i))

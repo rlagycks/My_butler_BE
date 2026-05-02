@@ -3,11 +3,13 @@ package com.mybutler.user.service
 import com.mybutler.auth.repository.UserRepository
 import com.mybutler.common.exception.BusinessException
 import com.mybutler.common.exception.ErrorCode
+import com.mybutler.common.storage.StorageService
 import com.mybutler.user.dto.*
 import com.mybutler.user.entity.UserPreference
 import com.mybutler.user.repository.UserPreferenceRepository
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
+import org.springframework.web.multipart.MultipartFile
 import org.springframework.transaction.annotation.Transactional
 
 @Service
@@ -15,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional
 class UserService(
     private val userRepository: UserRepository,
     private val userPreferenceRepository: UserPreferenceRepository,
+    private val storageService: StorageService,
 ) {
     fun getMyProfile(userId: Long): UserProfileResponse {
         val user = userRepository.findByIdOrNull(userId)
@@ -33,6 +36,15 @@ class UserService(
 
         checkOnboardingCompletion(user.id, user)
 
+        return UserProfileResponse.from(user)
+    }
+
+    @Transactional
+    fun uploadProfileImage(userId: Long, file: MultipartFile): UserProfileResponse {
+        val user = userRepository.findByIdOrNull(userId)
+            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+        user.profileImageUrl?.let { storageService.delete(it) }
+        user.profileImageUrl = storageService.upload(file, "profiles")
         return UserProfileResponse.from(user)
     }
 

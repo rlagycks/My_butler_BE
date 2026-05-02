@@ -2,6 +2,7 @@ package com.mybutler.recipe.service
 
 import com.mybutler.common.exception.BusinessException
 import com.mybutler.common.exception.ErrorCode
+import com.mybutler.common.storage.StorageService
 import com.mybutler.inventory.repository.InventoryItemRepository
 import com.mybutler.recipe.dto.CreateRecipeRequest
 import com.mybutler.recipe.dto.RecipeDetailResponse
@@ -23,6 +24,7 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.multipart.MultipartFile
 
 @Service
 @Transactional(readOnly = true)
@@ -32,6 +34,7 @@ class RecipeService(
     private val userPreferenceRepository: UserPreferenceRepository,
     private val entityManager: EntityManager,
     private val baseRecipeLoader: BaseRecipeLoader,
+    private val storageService: StorageService,
 ) {
     fun getHome(userId: Long): RecipeHomeResponse {
         val inventoryItems = inventoryItemRepository.findAllByUserId(userId)
@@ -195,6 +198,14 @@ class RecipeService(
         if (orders.size != orders.toSet().size) {
             throw BusinessException(ErrorCode.RECIPE_STEP_ORDER_DUPLICATE)
         }
+    }
+
+    @Transactional
+    fun uploadThumbnail(userId: Long, recipeId: Long, file: MultipartFile): RecipeDetailResponse {
+        val recipe = findOwnedCustom(userId, recipeId)
+        recipe.thumbnailUrl?.let { storageService.delete(it) }
+        recipe.thumbnailUrl = storageService.upload(file, "recipes/thumbnails")
+        return RecipeDetailResponse.from(recipe)
     }
 
     private fun findOwnedCustom(

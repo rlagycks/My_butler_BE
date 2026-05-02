@@ -9,10 +9,10 @@ import com.mybutler.auth.entity.RefreshToken
 import com.mybutler.auth.entity.User
 import com.mybutler.auth.repository.RefreshTokenRepository
 import com.mybutler.auth.repository.UserRepository
+import com.mybutler.common.email.EmailSender
 import com.mybutler.common.exception.BusinessException
 import com.mybutler.common.exception.ErrorCode
 import com.mybutler.common.security.JwtTokenProvider
-import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.security.crypto.password.PasswordEncoder
@@ -28,9 +28,11 @@ class AuthService(
     private val refreshTokenRepository: RefreshTokenRepository,
     private val passwordEncoder: PasswordEncoder,
     private val jwtTokenProvider: JwtTokenProvider,
+    private val passwordResetTokenStore: PasswordResetTokenStore,
+    private val emailSender: EmailSender,
     @Value("\${jwt.refresh-token-expiry-ms}") private val refreshTokenExpiryMs: Long,
+    @Value("\${password-reset.reset-url}") private val passwordResetUrl: String,
 ) {
-    private val log = LoggerFactory.getLogger(javaClass)
 
     fun checkUsername(username: String): CheckUsernameResponse {
         val available = !userRepository.existsByUsername(username)
@@ -100,15 +102,23 @@ class AuthService(
     @Transactional
     fun requestPasswordReset(email: String) {
         val user = userRepository.findByEmail(email).orElse(null) ?: return
-        // MVP: 로그에 토큰 출력 (실제 서비스에서는 이메일 발송)
-        val resetToken = UUID.randomUUID().toString()
-        log.info("Password reset token for {}: {}", user.email, resetToken)
+        val token = UUID.randomUUID().toString()
+        passwordResetTokenStore.save(token, user.email)
+        emailSender.send(
+            to = user.email,
+            subject = "[My Butler] 비밀번호 재설정 안내",
+            body = "아래 링크를 클릭하여 비밀번호를 재설정해 주세요.\n\n$passwordResetUrl?token=$token\n\n링크는 30분간 유효합니다.",
+        )
     }
 
     @Transactional
     fun resetPassword(token: String, newPassword: String) {
-        // MVP: Redis 연동 전까지 stub
-        throw BusinessException(ErrorCode.PASSWORD_RESET_TOKEN_EXPIRED)
+        val email = passwordResetTokenStore.getEmail(token)
+            ?: throw BusinessException(ErrorCode.PASSWORD_RESET_TOKEN_EXPIRED)
+        val user = userRepository.findByEmail(email)
+            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
+        user.password = passwordEncoder.encode(newPassword)
+        passwordResetTokenStore.delete(token)
     }
 
     private fun issueTokens(user: User): AuthTokens {

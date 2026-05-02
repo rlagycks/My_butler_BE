@@ -3,17 +3,17 @@ package com.mybutler.auth.service
 import com.mybutler.auth.dto.AuthTokens
 import com.mybutler.auth.dto.CheckUsernameResponse
 import com.mybutler.auth.dto.LoginRequest
-import com.mybutler.auth.dto.PasswordResetRequestDto
 import com.mybutler.auth.dto.RegisterRequest
+import com.mybutler.auth.event.PasswordResetRequestedEvent
 import com.mybutler.auth.entity.RefreshToken
 import com.mybutler.auth.entity.User
 import com.mybutler.auth.repository.RefreshTokenRepository
 import com.mybutler.auth.repository.UserRepository
-import com.mybutler.common.email.EmailSender
 import com.mybutler.common.exception.BusinessException
 import com.mybutler.common.exception.ErrorCode
 import com.mybutler.common.security.JwtTokenProvider
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
@@ -29,9 +29,8 @@ class AuthService(
     private val passwordEncoder: PasswordEncoder,
     private val jwtTokenProvider: JwtTokenProvider,
     private val passwordResetTokenStore: PasswordResetTokenStore,
-    private val emailSender: EmailSender,
+    private val applicationEventPublisher: ApplicationEventPublisher,
     @Value("\${jwt.refresh-token-expiry-ms}") private val refreshTokenExpiryMs: Long,
-    @Value("\${password-reset.reset-url}") private val passwordResetUrl: String,
 ) {
 
     fun checkUsername(username: String): CheckUsernameResponse {
@@ -99,16 +98,12 @@ class AuthService(
         refreshTokenRepository.deleteByUserId(userId)
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     fun requestPasswordReset(email: String) {
         val user = userRepository.findByEmail(email).orElse(null) ?: return
         val token = UUID.randomUUID().toString()
         passwordResetTokenStore.save(token, user.email)
-        emailSender.send(
-            to = user.email,
-            subject = "[My Butler] 비밀번호 재설정 안내",
-            body = "아래 링크를 클릭하여 비밀번호를 재설정해 주세요.\n\n$passwordResetUrl?token=$token\n\n링크는 30분간 유효합니다.",
-        )
+        applicationEventPublisher.publishEvent(PasswordResetRequestedEvent(user.email, token))
     }
 
     @Transactional

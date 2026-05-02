@@ -2,13 +2,13 @@ package com.mybutler.auth
 
 import com.mybutler.auth.dto.LoginRequest
 import com.mybutler.auth.dto.RegisterRequest
+import com.mybutler.auth.event.PasswordResetRequestedEvent
 import com.mybutler.auth.entity.RefreshToken
 import com.mybutler.auth.entity.User
 import com.mybutler.auth.repository.RefreshTokenRepository
 import com.mybutler.auth.repository.UserRepository
 import com.mybutler.auth.service.AuthService
 import com.mybutler.auth.service.PasswordResetTokenStore
-import com.mybutler.common.email.EmailSender
 import com.mybutler.common.exception.BusinessException
 import com.mybutler.common.exception.ErrorCode
 import com.mybutler.common.security.JwtTokenProvider
@@ -20,9 +20,11 @@ import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.Mock
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.given
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import java.time.LocalDateTime
 import java.util.Optional
@@ -34,11 +36,10 @@ class AuthServiceTest {
     @Mock lateinit var refreshTokenRepository: RefreshTokenRepository
     @Mock lateinit var jwtTokenProvider: JwtTokenProvider
     @Mock lateinit var passwordResetTokenStore: PasswordResetTokenStore
-    @Mock lateinit var emailSender: EmailSender
+    @Mock lateinit var applicationEventPublisher: ApplicationEventPublisher
 
     private val passwordEncoder = BCryptPasswordEncoder()
     private val refreshTokenExpiryMs = 604_800_000L
-    private val passwordResetUrl = "http://localhost:3000/reset-password"
 
     private lateinit var authService: AuthService
 
@@ -50,9 +51,8 @@ class AuthServiceTest {
             passwordEncoder = passwordEncoder,
             jwtTokenProvider = jwtTokenProvider,
             passwordResetTokenStore = passwordResetTokenStore,
-            emailSender = emailSender,
+            applicationEventPublisher = applicationEventPublisher,
             refreshTokenExpiryMs = refreshTokenExpiryMs,
-            passwordResetUrl = passwordResetUrl,
         )
     }
 
@@ -155,7 +155,7 @@ class AuthServiceTest {
     }
 
     @Test
-    fun `requestPasswordReset - 이메일 존재하면 토큰 저장 후 이메일 발송`() {
+    fun `requestPasswordReset - 이메일 존재하면 토큰 저장 후 이벤트 발행`() {
         val user = User(id = 1L, email = "test@email.com", username = "testuser",
             password = "encoded", termsAgreed = true, privacyAgreed = true)
         given(userRepository.findByEmail("test@email.com")).willReturn(Optional.of(user))
@@ -163,11 +163,10 @@ class AuthServiceTest {
         authService.requestPasswordReset("test@email.com")
 
         verify(passwordResetTokenStore).save(any<String>(), any<String>())
-        verify(emailSender).send(
-            to = any<String>(),
-            subject = any<String>(),
-            body = any<String>(),
-        )
+        val eventCaptor = argumentCaptor<PasswordResetRequestedEvent>()
+        verify(applicationEventPublisher).publishEvent(eventCaptor.capture())
+        assertThat(eventCaptor.firstValue.email).isEqualTo("test@email.com")
+        assertThat(eventCaptor.firstValue.token).isNotBlank()
     }
 
     @Test
@@ -177,7 +176,7 @@ class AuthServiceTest {
         authService.requestPasswordReset("none@email.com")
 
         verify(passwordResetTokenStore, never()).save(any<String>(), any<String>())
-        verify(emailSender, never()).send(any<String>(), any<String>(), any<String>())
+        verify(applicationEventPublisher, never()).publishEvent(any<Any>())
     }
 
     @Test

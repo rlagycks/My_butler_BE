@@ -22,7 +22,10 @@ import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.given
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
+import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.PageRequest
 import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.util.Optional
@@ -331,6 +334,19 @@ class InventoryServiceTest {
         assertThat(result.categoryBreakdown.associate { it.category to it.count }).containsEntry(Category.GIN, 1L)
         assertThat(result.categoryBreakdown.associate { it.category to it.count }).containsEntry(Category.RUM, 1L)
         assertThat(result.expiryWarningItems).hasSize(2)
+    }
+
+    @Test
+    fun `getHome - 재고가 비어 있으면 레시피 로더를 호출하지 않음`() {
+        val userId = 1L
+        val pageable = PageRequest.of(0, 20)
+        given(inventoryItemRepository.findAllByUserId(userId)).willReturn(emptyList())
+        given(inventoryItemRepository.findByUserId(userId, pageable)).willReturn(PageImpl(emptyList(), pageable, 0))
+
+        val result = inventoryService.getHome(userId, pageable)
+
+        assertThat(result.insights.availableRecipeCount).isEqualTo(0)
+        verify(baseRecipeLoader, never()).loadAll()
     }
 
     private fun inventoryItem(

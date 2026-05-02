@@ -153,7 +153,7 @@ class InventoryService(
             status == ExpiryStatus.WARNING || status == ExpiryStatus.DANGER
         }
 
-        val availableRecipeCount = RecipeMatchingService.partition(baseRecipeLoader.loadAll(), items).first.size
+        val availableRecipeCount = countAvailableRecipes(items)
 
         return InventoryInsightsResponse(
             totalValue = items.sumOf { (it.purchasePrice ?: 0).toLong() },
@@ -189,14 +189,19 @@ class InventoryService(
         val now = LocalDateTime.now()
         val expiryCounts = items.groupingBy { it.getExpiryStatus(now) }.eachCount()
 
-        val availableRecipeCount = RecipeMatchingService.partition(baseRecipeLoader.loadAll(), items).first.size
-
         return InventoryInsightSummaryResponse(
             totalValue = items.sumOf { (it.purchasePrice ?: 0).toLong() },
             totalItemCount = items.size.toLong(),
-            availableRecipeCount = availableRecipeCount,
+            availableRecipeCount = countAvailableRecipes(items),
             expiryWarningCount = (expiryCounts[ExpiryStatus.WARNING] ?: 0) + (expiryCounts[ExpiryStatus.DANGER] ?: 0),
         )
+    }
+
+    private fun countAvailableRecipes(items: List<InventoryItem>): Int {
+        if (items.isEmpty()) {
+            return 0
+        }
+        return RecipeMatchingService.partition(baseRecipeLoader.loadAll(), items).first.size
     }
 
     private fun createCategoryCount(items: List<InventoryItem>): Map<String, Long> {

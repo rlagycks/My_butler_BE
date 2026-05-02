@@ -15,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.Mock
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.given
 import org.mockito.kotlin.verify
 import org.springframework.data.domain.PageImpl
@@ -35,26 +36,32 @@ class PostServiceTest {
 
     @Test
     fun `createPost - 이미지 없이 게시글 생성`() {
-        val savedPost = post(id = 1L, userId = 10L, title = "제목", content = "내용")
-        given(postRepository.save(any<Post>())).willReturn(savedPost)
+        val postCaptor = argumentCaptor<Post>()
+        given(postRepository.save(any<Post>())).willAnswer { it.getArgument(0) }
 
         val result = postService.createPost(10L, CreatePostRequest(title = "제목", content = "내용"))
 
-        assertThat(result.id).isEqualTo(1L)
+        verify(postRepository).save(postCaptor.capture())
+        assertThat(postCaptor.firstValue.title).isEqualTo("제목")
         assertThat(result.title).isEqualTo("제목")
         assertThat(result.imageUrls).isEmpty()
     }
 
     @Test
     fun `createPost - 이미지 포함 게시글 생성`() {
-        val savedPost = post(id = 2L, userId = 10L)
-        given(postRepository.save(any<Post>())).willReturn(savedPost)
+        val postCaptor = argumentCaptor<Post>()
+        given(postRepository.save(any<Post>())).willAnswer { it.getArgument(0) }
 
         val result = postService.createPost(
             10L,
             CreatePostRequest(title = "제목", content = "내용", imageUrls = listOf("https://example.com/a.jpg", "https://example.com/b.jpg"))
         )
 
+        verify(postRepository).save(postCaptor.capture())
+        assertThat(postCaptor.firstValue.images.map { it.imageUrl }).containsExactly(
+            "https://example.com/a.jpg",
+            "https://example.com/b.jpg",
+        )
         assertThat(result.imageUrls).hasSize(2)
         assertThat(result.thumbnailUrl).isEqualTo("https://example.com/a.jpg")
     }

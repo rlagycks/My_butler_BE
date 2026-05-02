@@ -21,13 +21,9 @@ class PostService(
 ) {
     @Transactional
     fun createPost(userId: Long, request: CreatePostRequest): PostResponse {
-        val post = postRepository.save(
-            Post(userId = userId, title = request.title, content = request.content)
-        )
-        request.imageUrls.forEachIndexed { index, url ->
-            post.images.add(PostImage(post = post, imageUrl = url, displayOrder = index))
-        }
-        return PostResponse.from(post)
+        val post = Post(userId = userId, title = request.title, content = request.content)
+        replaceImages(post, request.imageUrls)
+        return PostResponse.from(postRepository.save(post))
     }
 
     fun getFeed(pageable: Pageable): PostPageResponse {
@@ -45,10 +41,7 @@ class PostService(
         val post = findOwned(postId, userId)
         post.title = request.title
         post.content = request.content
-        post.images.clear()
-        request.imageUrls.forEachIndexed { index, url ->
-            post.images.add(PostImage(post = post, imageUrl = url, displayOrder = index))
-        }
+        replaceImages(post, request.imageUrls)
         return PostResponse.from(post)
     }
 
@@ -68,5 +61,12 @@ class PostService(
             throw BusinessException(ErrorCode.POST_AUTHOR_MISMATCH)
         }
         return post
+    }
+
+    private fun replaceImages(post: Post, imageUrls: List<String>) {
+        post.images.clear()
+        imageUrls.forEachIndexed { index, url ->
+            post.images.add(PostImage(post = post, imageUrl = url, displayOrder = index))
+        }
     }
 }

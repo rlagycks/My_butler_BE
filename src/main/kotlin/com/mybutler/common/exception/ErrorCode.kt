@@ -40,6 +40,12 @@ enum class ErrorCode(
 
     // Recipe
     RECIPE_NOT_FOUND(HttpStatus.NOT_FOUND, "RECIPE_001", "레시피를 찾을 수 없습니다."),
+    RECIPE_ACCESS_DENIED(HttpStatus.FORBIDDEN, "RECIPE_002", "해당 레시피에 접근할 권한이 없습니다."),
+    RECIPE_BASE_NOT_DELETABLE(HttpStatus.BAD_REQUEST, "RECIPE_003", "기본 레시피는 삭제할 수 없습니다."),
+    RECIPE_INGREDIENT_REQUIRED(HttpStatus.BAD_REQUEST, "RECIPE_004", "재료를 하나 이상 입력해야 합니다."),
+    RECIPE_STEP_REQUIRED(HttpStatus.BAD_REQUEST, "RECIPE_005", "단계를 하나 이상 입력해야 합니다."),
+    RECIPE_BASE_NOT_UPDATABLE(HttpStatus.BAD_REQUEST, "RECIPE_006", "기본 레시피는 수정할 수 없습니다."),
+    RECIPE_STEP_ORDER_DUPLICATE(HttpStatus.BAD_REQUEST, "RECIPE_007", "단계 순서가 중복될 수 없습니다."),
 
     // Community
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMUNITY_001", "게시물을 찾을 수 없습니다."),

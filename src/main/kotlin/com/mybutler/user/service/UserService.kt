@@ -4,6 +4,7 @@ import com.mybutler.auth.repository.UserRepository
 import com.mybutler.common.exception.BusinessException
 import com.mybutler.common.exception.ErrorCode
 import com.mybutler.common.storage.StorageService
+import com.mybutler.common.util.ImageUploadValidator
 import com.mybutler.user.dto.*
 import com.mybutler.user.entity.UserPreference
 import com.mybutler.user.repository.UserPreferenceRepository
@@ -18,6 +19,7 @@ class UserService(
     private val userRepository: UserRepository,
     private val userPreferenceRepository: UserPreferenceRepository,
     private val storageService: StorageService,
+    private val imageUploadValidator: ImageUploadValidator,
 ) {
     fun getMyProfile(userId: Long): UserProfileResponse {
         val user = userRepository.findByIdOrNull(userId)
@@ -43,8 +45,11 @@ class UserService(
     fun uploadProfileImage(userId: Long, file: MultipartFile): UserProfileResponse {
         val user = userRepository.findByIdOrNull(userId)
             ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
-        user.profileImageUrl?.let { storageService.delete(it) }
-        user.profileImageUrl = storageService.upload(file, "profiles")
+        imageUploadValidator.validate(file)
+        val oldImageUrl = user.profileImageUrl
+        val newImageUrl = storageService.upload(file, "profiles")
+        user.profileImageUrl = newImageUrl
+        oldImageUrl?.takeIf { it != newImageUrl }?.let(storageService::delete)
         return UserProfileResponse.from(user)
     }
 

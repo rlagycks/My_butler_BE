@@ -3,6 +3,7 @@ package com.mybutler.recipe.service
 import com.mybutler.common.exception.BusinessException
 import com.mybutler.common.exception.ErrorCode
 import com.mybutler.common.storage.StorageService
+import com.mybutler.common.util.ImageUploadValidator
 import com.mybutler.inventory.repository.InventoryItemRepository
 import com.mybutler.recipe.dto.CreateRecipeRequest
 import com.mybutler.recipe.dto.RecipeDetailResponse
@@ -35,6 +36,7 @@ class RecipeService(
     private val entityManager: EntityManager,
     private val baseRecipeLoader: BaseRecipeLoader,
     private val storageService: StorageService,
+    private val imageUploadValidator: ImageUploadValidator,
 ) {
     fun getHome(userId: Long): RecipeHomeResponse {
         val inventoryItems = inventoryItemRepository.findAllByUserId(userId)
@@ -203,8 +205,11 @@ class RecipeService(
     @Transactional
     fun uploadThumbnail(userId: Long, recipeId: Long, file: MultipartFile): RecipeDetailResponse {
         val recipe = findOwnedCustom(userId, recipeId)
-        recipe.thumbnailUrl?.let { storageService.delete(it) }
-        recipe.thumbnailUrl = storageService.upload(file, "recipes/thumbnails")
+        imageUploadValidator.validate(file)
+        val oldThumbnailUrl = recipe.thumbnailUrl
+        val newThumbnailUrl = storageService.upload(file, "recipes/thumbnails")
+        recipe.thumbnailUrl = newThumbnailUrl
+        oldThumbnailUrl?.takeIf { it != newThumbnailUrl }?.let(storageService::delete)
         return RecipeDetailResponse.from(recipe)
     }
 

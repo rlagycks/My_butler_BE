@@ -16,6 +16,7 @@ import com.mybutler.recipe.entity.RecipeIngredient
 import com.mybutler.recipe.entity.TasteTag
 import com.mybutler.recipe.repository.RecipeRepository
 import com.mybutler.common.storage.StorageService
+import com.mybutler.common.util.ImageUploadValidator
 import com.mybutler.recipe.service.BaseRecipeLoader
 import com.mybutler.recipe.service.RecipeService
 import com.mybutler.user.repository.UserPreferenceRepository
@@ -30,6 +31,8 @@ import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.given
+import org.mockito.kotlin.inOrder
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.springframework.mock.web.MockMultipartFile
 import java.util.Optional
@@ -45,10 +48,19 @@ class RecipeServiceTest {
     @Mock lateinit var storageService: StorageService
 
     private lateinit var recipeService: RecipeService
+    private val imageUploadValidator = ImageUploadValidator()
 
     @BeforeEach
     fun setUp() {
-        recipeService = RecipeService(recipeRepository, inventoryItemRepository, userPreferenceRepository, entityManager, baseRecipeLoader, storageService)
+        recipeService = RecipeService(
+            recipeRepository,
+            inventoryItemRepository,
+            userPreferenceRepository,
+            entityManager,
+            baseRecipeLoader,
+            storageService,
+            imageUploadValidator,
+        )
     }
 
     @Test
@@ -227,7 +239,7 @@ class RecipeServiceTest {
     }
 
     @Test
-    fun `uploadThumbnail - 기존 썸네일 있으면 삭제 후 새 URL 저장`() {
+    fun `uploadThumbnail - 기존 썸네일 있으면 새 업로드 후 이전 파일 삭제`() {
         val userId = 1L
         val recipeId = 1L
         val customRecipe = recipe(id = recipeId, isCustom = true, authorId = userId, thumbnailUrl = "recipes/thumbnails/old.jpg")
@@ -238,8 +250,10 @@ class RecipeServiceTest {
 
         recipeService.uploadThumbnail(userId, recipeId, file)
 
-        verify(storageService).delete("recipes/thumbnails/old.jpg")
-        verify(storageService).upload(file, "recipes/thumbnails")
+        inOrder(storageService) {
+            verify(storageService).upload(file, "recipes/thumbnails")
+            verify(storageService).delete("recipes/thumbnails/old.jpg")
+        }
     }
 
     @Test
@@ -267,6 +281,23 @@ class RecipeServiceTest {
         }
 
         assertThat(ex.errorCode).isEqualTo(ErrorCode.RECIPE_ACCESS_DENIED)
+    }
+
+    @Test
+    fun `uploadThumbnail - 이미지가 아니면 INVALID_FILE_TYPE 예외`() {
+        val userId = 1L
+        val recipeId = 1L
+        val customRecipe = recipe(id = recipeId, isCustom = true, authorId = userId)
+        val file = MockMultipartFile("file", "thumb.txt", "text/plain", "data".toByteArray())
+
+        given(recipeRepository.findById(recipeId)).willReturn(Optional.of(customRecipe))
+
+        val ex = assertThrows<BusinessException> {
+            recipeService.uploadThumbnail(userId, recipeId, file)
+        }
+
+        assertThat(ex.errorCode).isEqualTo(ErrorCode.INVALID_FILE_TYPE)
+        verify(storageService, never()).upload(any(), any())
     }
 
     private fun recipe(

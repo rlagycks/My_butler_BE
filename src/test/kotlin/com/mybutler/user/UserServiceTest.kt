@@ -8,6 +8,7 @@ import com.mybutler.common.exception.ErrorCode
 import com.mybutler.user.dto.SavePreferencesRequest
 import com.mybutler.user.dto.UpdateProfileRequest
 import com.mybutler.user.dto.UpdateUsernameRequest
+import com.mybutler.common.util.ImageUploadValidator
 import com.mybutler.user.entity.TastePreference
 import com.mybutler.user.entity.UserPreference
 import com.mybutler.user.repository.UserPreferenceRepository
@@ -22,6 +23,8 @@ import org.mockito.Mock
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.any
 import org.mockito.kotlin.given
+import org.mockito.kotlin.inOrder
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.springframework.mock.web.MockMultipartFile
 import java.util.Optional
@@ -34,6 +37,7 @@ class UserServiceTest {
     @Mock lateinit var storageService: StorageService
 
     private lateinit var userService: UserService
+    private val imageUploadValidator = ImageUploadValidator()
 
     private val testUser = User(
         id = 1L, email = "test@email.com", username = "testuser",
@@ -42,7 +46,7 @@ class UserServiceTest {
 
     @BeforeEach
     fun setUp() {
-        userService = UserService(userRepository, userPreferenceRepository, storageService)
+        userService = UserService(userRepository, userPreferenceRepository, storageService, imageUploadValidator)
     }
 
     @Test
@@ -109,7 +113,7 @@ class UserServiceTest {
     }
 
     @Test
-    fun `uploadProfileImage - 기존 이미지 있으면 이전 파일 삭제 후 새 URL 저장`() {
+    fun `uploadProfileImage - 기존 이미지 있으면 새 업로드 후 이전 파일 삭제`() {
         val userWithImage = User(
             id = 1L, email = "test@email.com", username = "testuser",
             password = "encoded", termsAgreed = true, privacyAgreed = true,
@@ -121,8 +125,10 @@ class UserServiceTest {
 
         userService.uploadProfileImage(1L, file)
 
-        verify(storageService).delete("profiles/old.jpg")
-        verify(storageService).upload(file, "profiles")
+        inOrder(storageService) {
+            verify(storageService).upload(file, "profiles")
+            verify(storageService).delete("profiles/old.jpg")
+        }
     }
 
     @Test
@@ -133,5 +139,17 @@ class UserServiceTest {
         assertThatThrownBy { userService.uploadProfileImage(999L, file) }
             .isInstanceOf(BusinessException::class.java)
             .extracting("errorCode").isEqualTo(ErrorCode.USER_NOT_FOUND)
+    }
+
+    @Test
+    fun `uploadProfileImage - 이미지가 아니면 INVALID_FILE_TYPE 예외`() {
+        val file = MockMultipartFile("file", "note.txt", "text/plain", "data".toByteArray())
+        given(userRepository.findById(1L)).willReturn(Optional.of(testUser))
+
+        assertThatThrownBy { userService.uploadProfileImage(1L, file) }
+            .isInstanceOf(BusinessException::class.java)
+            .extracting("errorCode").isEqualTo(ErrorCode.INVALID_FILE_TYPE)
+
+        verify(storageService, never()).upload(any(), any())
     }
 }

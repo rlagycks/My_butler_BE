@@ -21,7 +21,8 @@ import org.mockito.kotlin.given
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.springframework.cache.CacheManager
-import org.springframework.cache.support.NoOpCacheManager
+import org.springframework.cache.concurrent.ConcurrentMapCacheManager
+import org.springframework.cache.interceptor.SimpleKey
 import java.math.BigDecimal
 import java.util.Optional
 
@@ -32,7 +33,7 @@ class RatingServiceTest {
     @Mock lateinit var ratingRepository: RecipeRatingRepository
 
     private lateinit var ratingService: RatingService
-    private val cacheManager: CacheManager = NoOpCacheManager()
+    private val cacheManager: CacheManager = ConcurrentMapCacheManager("baseRecipes")
 
     @BeforeEach
     fun setUp() {
@@ -42,7 +43,7 @@ class RatingServiceTest {
     @Test
     fun `upsert - 신규 평점 등록`() {
         val recipe = baseRecipe(id = 1L)
-        given(recipeRepository.findById(1L)).willReturn(Optional.of(recipe))
+        given(recipeRepository.findByIdForUpdate(1L)).willReturn(recipe)
         given(ratingRepository.findByRecipeIdAndUserId(1L, 10L)).willReturn(null)
         val savedRating = rating(id = 1L, recipeId = 1L, userId = 10L, score = 4)
         given(ratingRepository.save(any<RecipeRating>())).willReturn(savedRating)
@@ -59,7 +60,7 @@ class RatingServiceTest {
     @Test
     fun `upsert - 기존 평점 수정`() {
         val recipe = baseRecipe(id = 1L, ratingCount = 1, averageRating = BigDecimal("3.00"))
-        given(recipeRepository.findById(1L)).willReturn(Optional.of(recipe))
+        given(recipeRepository.findByIdForUpdate(1L)).willReturn(recipe)
         val existing = rating(id = 5L, recipeId = 1L, userId = 10L, score = 3)
         given(ratingRepository.findByRecipeIdAndUserId(1L, 10L)).willReturn(existing)
         given(ratingRepository.countByRecipeId(1L)).willReturn(1L)
@@ -75,7 +76,7 @@ class RatingServiceTest {
 
     @Test
     fun `upsert - 레시피 없을 때 RECIPE_NOT_FOUND`() {
-        given(recipeRepository.findById(999L)).willReturn(Optional.empty())
+        given(recipeRepository.findByIdForUpdate(999L)).willReturn(null)
 
         val ex = assertThrows<BusinessException> {
             ratingService.upsert(999L, 10L, RatingUpsertRequest(score = 4))
@@ -109,7 +110,7 @@ class RatingServiceTest {
     @Test
     fun `deleteMyRating - 평점 삭제 후 평균 재계산`() {
         val recipe = baseRecipe(id = 1L, ratingCount = 2, averageRating = BigDecimal("4.00"))
-        given(recipeRepository.findById(1L)).willReturn(Optional.of(recipe))
+        given(recipeRepository.findByIdForUpdate(1L)).willReturn(recipe)
         given(ratingRepository.deleteByRecipeIdAndUserId(1L, 10L)).willReturn(1L)
         given(ratingRepository.countByRecipeId(1L)).willReturn(1L)
         given(ratingRepository.calculateAverageScore(1L)).willReturn(3.0)
@@ -122,7 +123,7 @@ class RatingServiceTest {
 
     @Test
     fun `deleteMyRating - 평점 없을 때 RECIPE_RATING_NOT_FOUND`() {
-        given(recipeRepository.findById(1L)).willReturn(Optional.of(baseRecipe(id = 1L)))
+        given(recipeRepository.findByIdForUpdate(1L)).willReturn(baseRecipe(id = 1L))
         given(ratingRepository.deleteByRecipeIdAndUserId(1L, 10L)).willReturn(0L)
 
         val ex = assertThrows<BusinessException> {
@@ -135,7 +136,7 @@ class RatingServiceTest {
     @Test
     fun `deleteMyRating - 모든 평점 삭제 시 평균 0으로 초기화`() {
         val recipe = baseRecipe(id = 1L, ratingCount = 1, averageRating = BigDecimal("4.00"))
-        given(recipeRepository.findById(1L)).willReturn(Optional.of(recipe))
+        given(recipeRepository.findByIdForUpdate(1L)).willReturn(recipe)
         given(ratingRepository.deleteByRecipeIdAndUserId(1L, 10L)).willReturn(1L)
         given(ratingRepository.countByRecipeId(1L)).willReturn(0L)
 
@@ -143,6 +144,22 @@ class RatingServiceTest {
 
         assertThat(recipe.ratingCount).isEqualTo(0)
         assertThat(recipe.averageRating).isEqualByComparingTo(BigDecimal.ZERO)
+    }
+
+    @Test
+    fun `upsert - 기본 레시피 평점 갱신 시 baseRecipes 캐시 엔트리만 제거`() {
+        val recipe = baseRecipe(id = 1L)
+        cacheManager.getCache("baseRecipes")!!.put(SimpleKey.EMPTY, listOf(recipe))
+
+        given(recipeRepository.findByIdForUpdate(1L)).willReturn(recipe)
+        given(ratingRepository.findByRecipeIdAndUserId(1L, 10L)).willReturn(null)
+        given(ratingRepository.save(any<RecipeRating>())).willReturn(rating(id = 1L, recipeId = 1L, userId = 10L, score = 5))
+        given(ratingRepository.countByRecipeId(1L)).willReturn(1L)
+        given(ratingRepository.calculateAverageScore(1L)).willReturn(5.0)
+
+        ratingService.upsert(1L, 10L, RatingUpsertRequest(score = 5))
+
+        assertThat(cacheManager.getCache("baseRecipes")!!.get(SimpleKey.EMPTY)).isNull()
     }
 
     private fun baseRecipe(

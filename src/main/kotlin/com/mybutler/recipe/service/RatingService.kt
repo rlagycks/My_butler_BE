@@ -9,8 +9,8 @@ import com.mybutler.recipe.entity.RecipeRating
 import com.mybutler.recipe.repository.RecipeRatingRepository
 import com.mybutler.recipe.repository.RecipeRepository
 import org.springframework.cache.CacheManager
+import org.springframework.cache.interceptor.SimpleKey
 import org.springframework.data.domain.Pageable
-import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
@@ -25,7 +25,7 @@ class RatingService(
 ) {
     @Transactional
     fun upsert(recipeId: Long, userId: Long, request: RatingUpsertRequest): RatingResponse {
-        val recipe = recipeRepository.findByIdOrNull(recipeId)
+        val recipe = recipeRepository.findByIdForUpdate(recipeId)
             ?: throw BusinessException(ErrorCode.RECIPE_NOT_FOUND)
 
         val existing = ratingRepository.findByRecipeIdAndUserId(recipeId, userId)
@@ -60,7 +60,7 @@ class RatingService(
 
     @Transactional
     fun deleteMyRating(recipeId: Long, userId: Long) {
-        val recipe = recipeRepository.findByIdOrNull(recipeId)
+        val recipe = recipeRepository.findByIdForUpdate(recipeId)
             ?: throw BusinessException(ErrorCode.RECIPE_NOT_FOUND)
 
         val deleted = ratingRepository.deleteByRecipeIdAndUserId(recipeId, userId)
@@ -84,7 +84,7 @@ class RatingService(
         recipe.ratingCount = count.toInt()
 
         if (!recipe.isCustom) {
-            cacheManager.getCache("baseRecipes")?.clear()
+            cacheManager.getCache("baseRecipes")?.evict(SimpleKey.EMPTY)
         }
     }
 }

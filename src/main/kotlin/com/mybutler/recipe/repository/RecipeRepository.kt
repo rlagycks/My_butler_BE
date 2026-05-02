@@ -3,13 +3,19 @@ package com.mybutler.recipe.repository
 import com.mybutler.recipe.entity.BaseSpirit
 import com.mybutler.recipe.entity.Recipe
 import com.mybutler.recipe.entity.RecipeCategory
+import jakarta.persistence.LockModeType
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Lock
 import org.springframework.data.jpa.repository.Query
 
 interface RecipeRepository : JpaRepository<Recipe, Long> {
     fun findByIsCustomFalse(pageable: Pageable): Page<Recipe>
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM Recipe r WHERE r.id = :id")
+    fun findByIdForUpdate(id: Long): Recipe?
 
     fun findByIsCustomFalseAndCategory(category: RecipeCategory, pageable: Pageable): Page<Recipe>
 

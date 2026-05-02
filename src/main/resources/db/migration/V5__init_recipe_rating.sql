@@ -10,5 +10,4 @@ CREATE TABLE recipe_ratings
     CONSTRAINT uk_recipe_rating UNIQUE (recipe_id, user_id)
 );
 
-CREATE INDEX idx_recipe_ratings_recipe ON recipe_ratings (recipe_id);
 CREATE INDEX idx_recipe_ratings_user   ON recipe_ratings (user_id);

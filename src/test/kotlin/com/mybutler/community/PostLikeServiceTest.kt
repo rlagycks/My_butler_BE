@@ -36,9 +36,10 @@ class PostLikeServiceTest {
     @Test
     fun `toggleLike - 좋아요 없으면 추가`() {
         val post = post(id = 1L, likeCount = 0)
-        given(postRepository.findById(1L)).willReturn(Optional.of(post))
+        given(postRepository.findByIdForUpdate(1L)).willReturn(post)
         given(postLikeRepository.existsByPostIdAndUserId(1L, 10L)).willReturn(false)
         given(postLikeRepository.save(any<PostLike>())).willReturn(PostLike(postId = 1L, userId = 10L))
+        given(postLikeRepository.countByPostId(1L)).willReturn(1L)
 
         val result = postLikeService.toggleLike(1L, 10L)
 
@@ -50,8 +51,9 @@ class PostLikeServiceTest {
     @Test
     fun `toggleLike - 좋아요 있으면 취소`() {
         val post = post(id = 1L, likeCount = 3)
-        given(postRepository.findById(1L)).willReturn(Optional.of(post))
+        given(postRepository.findByIdForUpdate(1L)).willReturn(post)
         given(postLikeRepository.existsByPostIdAndUserId(1L, 10L)).willReturn(true)
+        given(postLikeRepository.countByPostId(1L)).willReturn(2L)
 
         val result = postLikeService.toggleLike(1L, 10L)
 
@@ -63,7 +65,7 @@ class PostLikeServiceTest {
 
     @Test
     fun `toggleLike - 게시글 없으면 POST_NOT_FOUND`() {
-        given(postRepository.findById(999L)).willReturn(Optional.empty())
+        given(postRepository.findByIdForUpdate(999L)).willReturn(null)
 
         val ex = assertThrows<BusinessException> { postLikeService.toggleLike(999L, 10L) }
 

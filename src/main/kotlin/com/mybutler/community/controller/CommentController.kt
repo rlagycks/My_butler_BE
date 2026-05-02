@@ -64,7 +64,7 @@ class CommentController(
         @AuthenticationPrincipal userDetails: CustomUserDetails,
         @Valid @RequestBody request: UpdateCommentRequest,
     ): ApiResponse<CommentResponse> {
-        return ApiResponse.ok(commentService.updateComment(commentId, userDetails.userId, request))
+        return ApiResponse.ok(commentService.updateComment(postId, commentId, userDetails.userId, request))
     }
 
     @Operation(summary = "댓글 삭제")
@@ -75,7 +75,7 @@ class CommentController(
         @PathVariable commentId: Long,
         @AuthenticationPrincipal userDetails: CustomUserDetails,
     ) {
-        commentService.deleteComment(commentId, userDetails.userId)
+        commentService.deleteComment(postId, commentId, userDetails.userId)
     }
 
     @Operation(summary = "대댓글 목록 조회")
@@ -87,6 +87,6 @@ class CommentController(
         @PageableDefault(size = 20, sort = ["createdAt"], direction = Sort.Direction.ASC)
         pageable: Pageable,
     ): ApiResponse<CommentPageResponse> {
-        return ApiResponse.ok(commentService.getReplies(commentId, pageable))
+        return ApiResponse.ok(commentService.getReplies(postId, commentId, pageable))
     }
 }

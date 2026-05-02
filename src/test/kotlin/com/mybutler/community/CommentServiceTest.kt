@@ -40,7 +40,7 @@ class CommentServiceTest {
     fun `createComment - 최상위 댓글 작성`() {
         val post = post(id = 1L, commentCount = 0)
         val saved = comment(id = 10L, postId = 1L, userId = 5L, content = "hello")
-        given(postRepository.findById(1L)).willReturn(Optional.of(post))
+        given(postRepository.findByIdForUpdate(1L)).willReturn(post)
         given(commentRepository.save(any<Comment>())).willReturn(saved)
 
         val result = commentService.createComment(1L, 5L, CreateCommentRequest(content = "hello"))
@@ -54,7 +54,8 @@ class CommentServiceTest {
     fun `createComment - 대댓글 작성`() {
         val post = post(id = 1L)
         val saved = comment(id = 11L, postId = 1L, userId = 5L, parentCommentId = 10L, content = "reply")
-        given(postRepository.findById(1L)).willReturn(Optional.of(post))
+        given(postRepository.findByIdForUpdate(1L)).willReturn(post)
+        given(commentRepository.findById(10L)).willReturn(Optional.of(comment(id = 10L, postId = 1L, userId = 3L)))
         given(commentRepository.save(any<Comment>())).willReturn(saved)
 
         val result = commentService.createComment(1L, 5L, CreateCommentRequest(content = "reply", parentCommentId = 10L))
@@ -64,13 +65,26 @@ class CommentServiceTest {
 
     @Test
     fun `createComment - 게시글 없으면 POST_NOT_FOUND`() {
-        given(postRepository.findById(999L)).willReturn(Optional.empty())
+        given(postRepository.findByIdForUpdate(999L)).willReturn(null)
 
         val ex = assertThrows<BusinessException> {
             commentService.createComment(999L, 1L, CreateCommentRequest(content = "x"))
         }
 
         assertThat(ex.errorCode).isEqualTo(ErrorCode.POST_NOT_FOUND)
+    }
+
+    @Test
+    fun `createComment - 다른 게시글의 부모 댓글이면 COMMENT_NOT_FOUND`() {
+        val post = post(id = 1L)
+        given(postRepository.findByIdForUpdate(1L)).willReturn(post)
+        given(commentRepository.findById(10L)).willReturn(Optional.of(comment(id = 10L, postId = 2L, userId = 3L)))
+
+        val ex = assertThrows<BusinessException> {
+            commentService.createComment(1L, 5L, CreateCommentRequest(content = "reply", parentCommentId = 10L))
+        }
+
+        assertThat(ex.errorCode).isEqualTo(ErrorCode.COMMENT_NOT_FOUND)
     }
 
     @Test
@@ -101,12 +115,12 @@ class CommentServiceTest {
     @Test
     fun `getReplies - 대댓글 목록 반환`() {
         val pageable = PageRequest.of(0, 20)
-        given(commentRepository.existsById(10L)).willReturn(true)
+        given(commentRepository.findById(10L)).willReturn(Optional.of(comment(id = 10L, postId = 1L)))
         given(commentRepository.findByParentCommentId(10L, pageable)).willReturn(
             PageImpl(listOf(comment(id = 20L, postId = 1L, parentCommentId = 10L)), pageable, 1)
         )
 
-        val result = commentService.getReplies(10L, pageable)
+        val result = commentService.getReplies(1L, 10L, pageable)
 
         assertThat(result.content).hasSize(1)
         assertThat(result.content.first().parentCommentId).isEqualTo(10L)
@@ -114,10 +128,21 @@ class CommentServiceTest {
 
     @Test
     fun `getReplies - 댓글 없으면 COMMENT_NOT_FOUND`() {
-        given(commentRepository.existsById(999L)).willReturn(false)
+        given(commentRepository.findById(999L)).willReturn(Optional.empty())
 
         val ex = assertThrows<BusinessException> {
-            commentService.getReplies(999L, PageRequest.of(0, 20))
+            commentService.getReplies(1L, 999L, PageRequest.of(0, 20))
+        }
+
+        assertThat(ex.errorCode).isEqualTo(ErrorCode.COMMENT_NOT_FOUND)
+    }
+
+    @Test
+    fun `getReplies - 다른 게시글 댓글이면 COMMENT_NOT_FOUND`() {
+        given(commentRepository.findById(10L)).willReturn(Optional.of(comment(id = 10L, postId = 2L)))
+
+        val ex = assertThrows<BusinessException> {
+            commentService.getReplies(1L, 10L, PageRequest.of(0, 20))
         }
 
         assertThat(ex.errorCode).isEqualTo(ErrorCode.COMMENT_NOT_FOUND)
@@ -128,7 +153,7 @@ class CommentServiceTest {
         val c = comment(id = 1L, postId = 1L, userId = 5L, content = "old")
         given(commentRepository.findById(1L)).willReturn(Optional.of(c))
 
-        val result = commentService.updateComment(1L, 5L, UpdateCommentRequest(content = "new"))
+        val result = commentService.updateComment(1L, 1L, 5L, UpdateCommentRequest(content = "new"))
 
         assertThat(result.content).isEqualTo("new")
         assertThat(c.content).isEqualTo("new")
@@ -140,23 +165,25 @@ class CommentServiceTest {
         given(commentRepository.findById(1L)).willReturn(Optional.of(c))
 
         val ex = assertThrows<BusinessException> {
-            commentService.updateComment(1L, 99L, UpdateCommentRequest(content = "x"))
+            commentService.updateComment(1L, 1L, 99L, UpdateCommentRequest(content = "x"))
         }
 
         assertThat(ex.errorCode).isEqualTo(ErrorCode.COMMENT_AUTHOR_MISMATCH)
     }
 
     @Test
-    fun `deleteComment - 작성자가 삭제하면 commentCount 감소`() {
+    fun `deleteComment - 작성자가 삭제하면 실제 commentCount로 동기화`() {
         val post = post(id = 1L, commentCount = 3)
         val c = comment(id = 1L, postId = 1L, userId = 5L)
         given(commentRepository.findById(1L)).willReturn(Optional.of(c))
-        given(postRepository.findById(1L)).willReturn(Optional.of(post))
+        given(postRepository.findByIdForUpdate(1L)).willReturn(post)
+        given(commentRepository.countByPostId(1L)).willReturn(1L)
 
-        commentService.deleteComment(1L, 5L)
+        commentService.deleteComment(1L, 1L, 5L)
 
         verify(commentRepository).delete(c)
-        assertThat(post.commentCount).isEqualTo(2)
+        verify(commentRepository).flush()
+        assertThat(post.commentCount).isEqualTo(1)
     }
 
     @Test
@@ -164,7 +191,7 @@ class CommentServiceTest {
         val c = comment(id = 1L, postId = 1L, userId = 5L)
         given(commentRepository.findById(1L)).willReturn(Optional.of(c))
 
-        val ex = assertThrows<BusinessException> { commentService.deleteComment(1L, 99L) }
+        val ex = assertThrows<BusinessException> { commentService.deleteComment(1L, 1L, 99L) }
 
         assertThat(ex.errorCode).isEqualTo(ErrorCode.COMMENT_AUTHOR_MISMATCH)
     }

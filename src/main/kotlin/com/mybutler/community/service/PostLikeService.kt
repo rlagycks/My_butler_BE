@@ -18,16 +18,16 @@ class PostLikeService(
 ) {
     @Transactional
     fun toggleLike(postId: Long, userId: Long): LikeResponse {
-        val post = postRepository.findByIdOrNull(postId)
+        val post = postRepository.findByIdForUpdate(postId)
             ?: throw BusinessException(ErrorCode.POST_NOT_FOUND)
 
         return if (postLikeRepository.existsByPostIdAndUserId(postId, userId)) {
             postLikeRepository.deleteByPostIdAndUserId(postId, userId)
-            post.likeCount = maxOf(0, post.likeCount - 1)
+            post.likeCount = postLikeRepository.countByPostId(postId).toInt()
             LikeResponse(liked = false, likeCount = post.likeCount)
         } else {
             postLikeRepository.save(PostLike(postId = postId, userId = userId))
-            post.likeCount++
+            post.likeCount = postLikeRepository.countByPostId(postId).toInt()
             LikeResponse(liked = true, likeCount = post.likeCount)
         }
     }

@@ -22,8 +22,9 @@ class CommentService(
 ) {
     @Transactional
     fun createComment(postId: Long, userId: Long, request: CreateCommentRequest): CommentResponse {
-        val post = postRepository.findByIdOrNull(postId)
+        val post = postRepository.findByIdForUpdate(postId)
             ?: throw BusinessException(ErrorCode.POST_NOT_FOUND)
+        validateParentComment(postId, request.parentCommentId)
 
         val comment = commentRepository.save(
             Comment(
@@ -44,32 +45,48 @@ class CommentService(
         )
     }
 
-    fun getReplies(commentId: Long, pageable: Pageable): CommentPageResponse {
-        if (!commentRepository.existsById(commentId)) throw BusinessException(ErrorCode.COMMENT_NOT_FOUND)
+    fun getReplies(postId: Long, commentId: Long, pageable: Pageable): CommentPageResponse {
+        findCommentInPost(postId, commentId)
         return CommentPageResponse.from(
             commentRepository.findByParentCommentId(commentId, pageable)
         )
     }
 
     @Transactional
-    fun updateComment(commentId: Long, userId: Long, request: UpdateCommentRequest): CommentResponse {
-        val comment = findOwned(commentId, userId)
+    fun updateComment(postId: Long, commentId: Long, userId: Long, request: UpdateCommentRequest): CommentResponse {
+        val comment = findOwned(postId, commentId, userId)
         comment.content = request.content
         return CommentResponse.from(comment)
     }
 
     @Transactional
-    fun deleteComment(commentId: Long, userId: Long) {
-        val comment = findOwned(commentId, userId)
-        val post = postRepository.findByIdOrNull(comment.postId)
+    fun deleteComment(postId: Long, commentId: Long, userId: Long) {
+        val comment = findOwned(postId, commentId, userId)
+        val post = postRepository.findByIdForUpdate(postId)
         commentRepository.delete(comment)
-        post?.let { it.commentCount = maxOf(0, it.commentCount - 1) }
+        commentRepository.flush()
+        post?.commentCount = commentRepository.countByPostId(postId).toInt()
     }
 
-    private fun findOwned(commentId: Long, userId: Long): Comment {
+    private fun validateParentComment(postId: Long, parentCommentId: Long?) {
+        if (parentCommentId == null) {
+            return
+        }
+        findCommentInPost(postId, parentCommentId)
+    }
+
+    private fun findOwned(postId: Long, commentId: Long, userId: Long): Comment {
+        val comment = findCommentInPost(postId, commentId)
+        if (comment.userId != userId) throw BusinessException(ErrorCode.COMMENT_AUTHOR_MISMATCH)
+        return comment
+    }
+
+    private fun findCommentInPost(postId: Long, commentId: Long): Comment {
         val comment = commentRepository.findByIdOrNull(commentId)
             ?: throw BusinessException(ErrorCode.COMMENT_NOT_FOUND)
-        if (comment.userId != userId) throw BusinessException(ErrorCode.COMMENT_AUTHOR_MISMATCH)
+        if (comment.postId != postId) {
+            throw BusinessException(ErrorCode.COMMENT_NOT_FOUND)
+        }
         return comment
     }
 }

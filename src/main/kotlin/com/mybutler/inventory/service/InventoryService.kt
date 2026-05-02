@@ -18,6 +18,8 @@ import com.mybutler.inventory.entity.Category
 import com.mybutler.inventory.entity.ExpiryStatus
 import com.mybutler.inventory.entity.InventoryItem
 import com.mybutler.inventory.repository.InventoryItemRepository
+import com.mybutler.recipe.service.BaseRecipeLoader
+import com.mybutler.recipe.service.RecipeMatchingService
 import org.springframework.data.domain.Pageable
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
@@ -29,6 +31,7 @@ import java.time.temporal.ChronoUnit
 @Transactional(readOnly = true)
 class InventoryService(
     private val inventoryItemRepository: InventoryItemRepository,
+    private val baseRecipeLoader: BaseRecipeLoader,
 ) {
     fun getHome(userId: Long, pageable: Pageable): InventoryHomeResponse {
         val allItems = inventoryItemRepository.findAllByUserId(userId)
@@ -150,10 +153,12 @@ class InventoryService(
             status == ExpiryStatus.WARNING || status == ExpiryStatus.DANGER
         }
 
+        val availableRecipeCount = countAvailableRecipes(items)
+
         return InventoryInsightsResponse(
             totalValue = items.sumOf { (it.purchasePrice ?: 0).toLong() },
             totalItemCount = items.size.toLong(),
-            availableRecipeCount = 0,
+            availableRecipeCount = availableRecipeCount,
             expiryWarningCount = warningItems.size,
             categoryBreakdown = createCategoryBreakdown(items),
             expiryWarningItems = warningItems.mapNotNull { item ->
@@ -187,9 +192,16 @@ class InventoryService(
         return InventoryInsightSummaryResponse(
             totalValue = items.sumOf { (it.purchasePrice ?: 0).toLong() },
             totalItemCount = items.size.toLong(),
-            availableRecipeCount = 0,
+            availableRecipeCount = countAvailableRecipes(items),
             expiryWarningCount = (expiryCounts[ExpiryStatus.WARNING] ?: 0) + (expiryCounts[ExpiryStatus.DANGER] ?: 0),
         )
+    }
+
+    private fun countAvailableRecipes(items: List<InventoryItem>): Int {
+        if (items.isEmpty()) {
+            return 0
+        }
+        return RecipeMatchingService.partition(baseRecipeLoader.loadAll(), items).first.size
     }
 
     private fun createCategoryCount(items: List<InventoryItem>): Map<String, Long> {

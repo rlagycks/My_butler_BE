@@ -92,7 +92,7 @@ class RecipeServiceTest {
         verify(recipeRepository).save(captor.capture())
         assertThat(captor.firstValue.isCustom).isTrue()
         assertThat(captor.firstValue.authorId).isEqualTo(userId)
-        assertThat(captor.firstValue.tasteTags).containsExactly(TasteTag.SWEET)
+        assertThat(captor.firstValue.tasteTags).containsExactlyInAnyOrder(TasteTag.SWEET)
         assertThat(result.id).isEqualTo(100L)
         assertThat(result.isCustom).isTrue()
     }

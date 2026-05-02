@@ -15,10 +15,13 @@ object RecipeMatchingService {
     fun match(recipe: Recipe, inventoryItems: List<InventoryItem>): RecipeMatchResult =
         match(recipe, inventoryItems.toInventoryNameSet())
 
-    fun match(recipe: Recipe, inventoryNames: Set<String>): RecipeMatchResult {
+    private fun match(recipe: Recipe, inventoryNames: Set<String>): RecipeMatchResult {
         val missing = recipe.ingredients.filter { ingredient ->
             val ingredientWords = ingredient.name.lowercase().toWordSet()
-            inventoryNames.none { inv -> (inv.toWordSet() intersect ingredientWords).isNotEmpty() }
+            inventoryNames.none { inv ->
+                val invWords = inv.toWordSet()
+                invWords.containsAll(ingredientWords) || ingredientWords.containsAll(invWords)
+            }
         }
         return RecipeMatchResult(
             recipe = recipe,

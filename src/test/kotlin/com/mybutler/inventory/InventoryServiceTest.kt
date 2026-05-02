@@ -11,6 +11,7 @@ import com.mybutler.inventory.entity.InventoryItem
 import com.mybutler.inventory.entity.LevelStatus
 import com.mybutler.inventory.repository.InventoryItemRepository
 import com.mybutler.inventory.service.InventoryService
+import com.mybutler.recipe.service.BaseRecipeLoader
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -30,12 +31,13 @@ import java.util.Optional
 class InventoryServiceTest {
 
     @Mock lateinit var inventoryItemRepository: InventoryItemRepository
+    @Mock lateinit var baseRecipeLoader: BaseRecipeLoader
 
     private lateinit var inventoryService: InventoryService
 
     @BeforeEach
     fun setUp() {
-        inventoryService = InventoryService(inventoryItemRepository)
+        inventoryService = InventoryService(inventoryItemRepository, baseRecipeLoader)
     }
 
     @Test
@@ -318,6 +320,7 @@ class InventoryServiceTest {
         given(inventoryItemRepository.findAllByUserId(userId)).willReturn(
             listOf(dangerItem, warningItem, normalItem, unopenedItem)
         )
+        given(baseRecipeLoader.loadAll()).willReturn(emptyList())
 
         val result = inventoryService.getInsights(userId)
 

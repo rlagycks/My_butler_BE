@@ -73,7 +73,7 @@ class PostCommentService(
     @Transactional
     fun addComment(postId: Long, userId: Long, content: String): CommentCreateResponse {
         if (content.isBlank()) throw BusinessException(ErrorCode.COMMENT_CONTENT_REQUIRED)
-        val post = postRepository.findByIdOrNull(postId)
+        val post = postRepository.findByIdForUpdate(postId)
             ?: throw BusinessException(ErrorCode.POST_NOT_FOUND)
 
         val comment = postCommentRepository.save(
@@ -89,8 +89,9 @@ class PostCommentService(
         val comment = postCommentRepository.findByIdOrNull(commentId)
             ?: throw BusinessException(ErrorCode.COMMENT_NOT_FOUND)
         if (comment.authorId != userId) throw BusinessException(ErrorCode.COMMENT_AUTHOR_MISMATCH)
+        if (comment.postId != postId || comment.isReply()) throw BusinessException(ErrorCode.COMMENT_INVALID_TARGET)
 
-        val post = postRepository.findByIdOrNull(postId)
+        val post = postRepository.findByIdForUpdate(postId)
             ?: throw BusinessException(ErrorCode.POST_NOT_FOUND)
 
         val replyCount = postCommentRepository.countByParentCommentId(commentId)
@@ -102,10 +103,12 @@ class PostCommentService(
     @Transactional
     fun addReply(postId: Long, parentCommentId: Long, userId: Long, content: String): CommentCreateResponse {
         if (content.isBlank()) throw BusinessException(ErrorCode.COMMENT_CONTENT_REQUIRED)
-        postCommentRepository.findByIdOrNull(parentCommentId)
+        val parentComment = postCommentRepository.findByIdOrNull(parentCommentId)
             ?: throw BusinessException(ErrorCode.COMMENT_NOT_FOUND)
+        if (parentComment.postId != postId) throw BusinessException(ErrorCode.COMMENT_INVALID_TARGET)
+        if (parentComment.isReply()) throw BusinessException(ErrorCode.COMMENT_REPLY_DEPTH_EXCEEDED)
 
-        val post = postRepository.findByIdOrNull(postId)
+        val post = postRepository.findByIdForUpdate(postId)
             ?: throw BusinessException(ErrorCode.POST_NOT_FOUND)
 
         val reply = postCommentRepository.save(
@@ -121,8 +124,11 @@ class PostCommentService(
         val reply = postCommentRepository.findByIdOrNull(replyId)
             ?: throw BusinessException(ErrorCode.COMMENT_NOT_FOUND)
         if (reply.authorId != userId) throw BusinessException(ErrorCode.COMMENT_AUTHOR_MISMATCH)
+        if (reply.postId != postId || reply.parentCommentId != commentId) {
+            throw BusinessException(ErrorCode.COMMENT_INVALID_TARGET)
+        }
 
-        val post = postRepository.findByIdOrNull(postId)
+        val post = postRepository.findByIdForUpdate(postId)
             ?: throw BusinessException(ErrorCode.POST_NOT_FOUND)
 
         postCommentRepository.delete(reply)

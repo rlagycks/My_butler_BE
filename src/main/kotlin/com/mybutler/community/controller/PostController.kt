@@ -5,6 +5,7 @@ import com.mybutler.common.security.CustomUserDetails
 import com.mybutler.community.dto.CommentCreateResponse
 import com.mybutler.community.dto.CommentPageResponse
 import com.mybutler.community.dto.CreateCommentRequest
+import com.mybutler.community.dto.CreatePostRequest
 import com.mybutler.community.dto.FeedPageResponse
 import com.mybutler.community.dto.LikeResponse
 import com.mybutler.community.dto.PostCreateResponse
@@ -67,13 +68,11 @@ class PostController(
     @ResponseStatus(HttpStatus.CREATED)
     fun createPost(
         @AuthenticationPrincipal userDetails: CustomUserDetails,
-        @RequestParam type: PostType,
-        @RequestParam(required = false) caption: String?,
-        @RequestParam(required = false) recipeId: Long?,
+        @RequestPart request: CreatePostRequest,
         @RequestPart(required = false) images: List<MultipartFile>?,
     ): ApiResponse<PostCreateResponse> {
         return ApiResponse.ok(
-            postService.createPost(userDetails.userId, type, caption, recipeId, images ?: emptyList()),
+            postService.createPost(userDetails.userId, request, images ?: emptyList()),
         )
     }
 

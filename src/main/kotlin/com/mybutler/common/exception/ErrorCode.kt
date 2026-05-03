@@ -61,6 +61,8 @@ enum class ErrorCode(
     COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMENT_001", "해당 댓글을 찾을 수 없습니다."),
     COMMENT_AUTHOR_MISMATCH(HttpStatus.FORBIDDEN, "COMMENT_002", "본인의 댓글만 삭제할 수 있습니다."),
     COMMENT_CONTENT_REQUIRED(HttpStatus.BAD_REQUEST, "COMMENT_003", "댓글 내용을 입력해주세요."),
+    COMMENT_INVALID_TARGET(HttpStatus.BAD_REQUEST, "COMMENT_004", "댓글 경로가 올바르지 않습니다."),
+    COMMENT_REPLY_DEPTH_EXCEEDED(HttpStatus.BAD_REQUEST, "COMMENT_005", "대댓글에는 다시 답글을 작성할 수 없습니다."),
     POST_IMAGE_COUNT_EXCEEDED(HttpStatus.BAD_REQUEST, "FILE_003", "이미지는 최대 10장까지 업로드할 수 있습니다."),
 
     // Storage

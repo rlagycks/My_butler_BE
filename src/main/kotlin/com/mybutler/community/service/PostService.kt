@@ -6,6 +6,7 @@ import com.mybutler.common.exception.ErrorCode
 import com.mybutler.common.storage.StorageService
 import com.mybutler.community.dto.AuthorDto
 import com.mybutler.community.dto.CommentPageResponse
+import com.mybutler.community.dto.CreatePostRequest
 import com.mybutler.community.dto.FeedPageResponse
 import com.mybutler.community.dto.MyPostPageResponse
 import com.mybutler.community.dto.MyPostSummaryResponse
@@ -29,7 +30,9 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.support.TransactionTemplate
 import org.springframework.web.multipart.MultipartFile
+import org.slf4j.LoggerFactory
 
 private const val MAX_CAPTION_LENGTH = 2000
 private const val MAX_IMAGE_COUNT = 10
@@ -45,7 +48,10 @@ class PostService(
     private val recipeRepository: RecipeRepository,
     private val storageService: StorageService,
     private val postCommentService: PostCommentService,
+    private val transactionTemplate: TransactionTemplate,
 ) {
+    private val log = LoggerFactory.getLogger(javaClass)
+
     fun getPostFeed(currentUserId: Long, sort: String, pageable: Pageable): FeedPageResponse {
         val page = when (sort.uppercase()) {
             "POPULAR" -> postRepository.findAllForFeedPopular(pageable)
@@ -131,47 +137,70 @@ class PostService(
         )
     }
 
-    @Transactional
-    fun createPost(userId: Long, type: PostType, caption: String?, recipeId: Long?, images: List<MultipartFile>): PostCreateResponse {
-        if (!caption.isNullOrEmpty() && caption.length > MAX_CAPTION_LENGTH) {
+    fun createPost(userId: Long, request: CreatePostRequest, images: List<MultipartFile>): PostCreateResponse {
+        if (!request.caption.isNullOrEmpty() && request.caption.length > MAX_CAPTION_LENGTH) {
             throw BusinessException(ErrorCode.POST_CAPTION_TOO_LONG)
         }
-        if (type == PostType.PHOTO && images.isEmpty()) {
+        if (request.type == PostType.PHOTO && images.isEmpty()) {
             throw BusinessException(ErrorCode.POST_PHOTO_REQUIRED)
         }
         if (images.size > MAX_IMAGE_COUNT) {
             throw BusinessException(ErrorCode.POST_IMAGE_COUNT_EXCEEDED)
         }
-
-        val post = postRepository.save(
-            Post(authorId = userId, recipeId = recipeId, type = type, caption = caption),
-        )
-
-        images.forEachIndexed { index, file ->
-            val url = storageService.upload(file, POSTS_DIRECTORY)
-            post.images.add(PostImage(post = post, imageUrl = url, displayOrder = index))
+        if (request.recipeId != null && !recipeRepository.existsById(request.recipeId)) {
+            throw BusinessException(ErrorCode.RECIPE_NOT_FOUND)
         }
 
-        return PostCreateResponse(
-            id = post.id,
-            type = post.type,
-            imageUrls = post.images.map { it.imageUrl },
-            caption = post.caption,
-            createdAt = post.createdAt,
-        )
+        val uploadedImageUrls = mutableListOf<String>()
+
+        return try {
+            images.forEach { file ->
+                uploadedImageUrls += storageService.upload(file, POSTS_DIRECTORY)
+            }
+
+            transactionTemplate.execute {
+                val post = postRepository.save(
+                    Post(
+                        authorId = userId,
+                        recipeId = request.recipeId,
+                        type = request.type,
+                        caption = request.caption,
+                    ),
+                )
+
+                uploadedImageUrls.forEachIndexed { index, imageUrl ->
+                    post.images.add(PostImage(post = post, imageUrl = imageUrl, displayOrder = index))
+                }
+
+                PostCreateResponse(
+                    id = post.id,
+                    type = post.type,
+                    imageUrls = post.images.map { it.imageUrl },
+                    caption = post.caption,
+                    createdAt = post.createdAt,
+                )
+            } ?: throw IllegalStateException("Transaction completed without creating a post")
+        } catch (ex: Exception) {
+            uploadedImageUrls.forEach(::deleteImageQuietly)
+            throw ex
+        }
     }
 
-    @Transactional
     fun deletePost(postId: Long, userId: Long) {
-        val post = postRepository.findByIdOrNull(postId)
-            ?: throw BusinessException(ErrorCode.POST_NOT_FOUND)
-        if (post.isArGenerated) throw BusinessException(ErrorCode.POST_AR_GENERATED_NOT_DELETABLE)
-        if (post.authorId != userId) throw BusinessException(ErrorCode.POST_AUTHOR_MISMATCH)
+        val imageUrls = transactionTemplate.execute {
+            val post = postRepository.findByIdOrNull(postId)
+                ?: throw BusinessException(ErrorCode.POST_NOT_FOUND)
+            if (post.isArGenerated) throw BusinessException(ErrorCode.POST_AR_GENERATED_NOT_DELETABLE)
+            if (post.authorId != userId) throw BusinessException(ErrorCode.POST_AUTHOR_MISMATCH)
 
-        post.images.forEach { storageService.delete(it.imageUrl) }
-        postLikeRepository.deleteAllByPostId(postId)
-        postCommentRepository.deleteAllByPostId(postId)
-        postRepository.delete(post)
+            val urls = post.images.map { it.imageUrl }
+            postLikeRepository.deleteAllByPostId(postId)
+            postCommentRepository.deleteAllByPostId(postId)
+            postRepository.delete(post)
+            urls
+        } ?: throw IllegalStateException("Transaction completed without deleting a post")
+
+        imageUrls.forEach(::deleteImageQuietly)
     }
 
     private fun buildFeedPageResponse(
@@ -222,5 +251,10 @@ class PostService(
         }
 
         return FeedPageResponse(content, pageNum, pageSize, totalElements, totalPages, last)
+    }
+
+    private fun deleteImageQuietly(imageUrl: String) {
+        runCatching { storageService.delete(imageUrl) }
+            .onFailure { ex -> log.warn("Failed to delete community image: {}", imageUrl, ex) }
     }
 }

@@ -32,6 +32,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.multipart.MultipartFile
 
 @Tag(name = "Recipe", description = "레시피 API")
 @RestController
@@ -126,5 +127,15 @@ class RecipeController(
         @PathVariable id: Long,
     ) {
         recipeService.delete(userDetails.userId, id)
+    }
+
+    @Operation(summary = "나만의 레시피 썸네일 업로드")
+    @PostMapping("/{id}/thumbnail", consumes = ["multipart/form-data"])
+    fun uploadThumbnail(
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
+        @PathVariable id: Long,
+        @RequestParam("file") file: MultipartFile,
+    ): ApiResponse<RecipeDetailResponse> {
+        return ApiResponse.ok(recipeService.uploadThumbnail(userDetails.userId, id, file))
     }
 }

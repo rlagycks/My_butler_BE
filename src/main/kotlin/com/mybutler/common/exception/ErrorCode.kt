@@ -51,10 +51,19 @@ enum class ErrorCode(
     RECIPE_RATING_NOT_FOUND(HttpStatus.NOT_FOUND, "RATING_001", "평점을 찾을 수 없습니다."),
 
     // Community
-    POST_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMUNITY_001", "게시물을 찾을 수 없습니다."),
-    COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMUNITY_002", "댓글을 찾을 수 없습니다."),
-    POST_AUTHOR_MISMATCH(HttpStatus.FORBIDDEN, "COMMUNITY_003", "게시물 작성자가 아닙니다."),
-    COMMENT_AUTHOR_MISMATCH(HttpStatus.FORBIDDEN, "COMMUNITY_004", "댓글 작성자가 아닙니다."),
+    POST_NOT_FOUND(HttpStatus.NOT_FOUND, "POST_001", "해당 게시물을 찾을 수 없습니다."),
+    POST_AUTHOR_MISMATCH(HttpStatus.FORBIDDEN, "POST_002", "본인의 게시물만 삭제할 수 있습니다."),
+    POST_PHOTO_REQUIRED(HttpStatus.BAD_REQUEST, "POST_003", "PHOTO 타입은 사진이 1장 이상 필요합니다."),
+    POST_CAPTION_TOO_LONG(HttpStatus.BAD_REQUEST, "POST_004", "글 내용은 최대 2000자까지 입력할 수 있습니다."),
+    POST_LIKE_ALREADY_EXISTS(HttpStatus.CONFLICT, "POST_005", "이미 좋아요를 누른 게시물입니다."),
+    POST_LIKE_NOT_FOUND(HttpStatus.BAD_REQUEST, "POST_006", "좋아요를 누르지 않은 게시물입니다."),
+    POST_AR_GENERATED_NOT_DELETABLE(HttpStatus.FORBIDDEN, "POST_007", "AR 자동 생성 게시물은 삭제할 수 없습니다."),
+    COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMENT_001", "해당 댓글을 찾을 수 없습니다."),
+    COMMENT_AUTHOR_MISMATCH(HttpStatus.FORBIDDEN, "COMMENT_002", "본인의 댓글만 삭제할 수 있습니다."),
+    COMMENT_CONTENT_REQUIRED(HttpStatus.BAD_REQUEST, "COMMENT_003", "댓글 내용을 입력해주세요."),
+    COMMENT_INVALID_TARGET(HttpStatus.BAD_REQUEST, "COMMENT_004", "댓글 경로가 올바르지 않습니다."),
+    COMMENT_REPLY_DEPTH_EXCEEDED(HttpStatus.BAD_REQUEST, "COMMENT_005", "대댓글에는 다시 답글을 작성할 수 없습니다."),
+    POST_IMAGE_COUNT_EXCEEDED(HttpStatus.BAD_REQUEST, "FILE_003", "이미지는 최대 10장까지 업로드할 수 있습니다."),
 
     // Storage
     FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "STORAGE_001", "파일 업로드에 실패했습니다."),

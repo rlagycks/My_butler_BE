@@ -51,4 +51,6 @@ interface RecipeRepository : JpaRepository<Recipe, Long> {
     ): Page<Recipe>
 
     fun findByIsCustomTrueAndAuthorId(authorId: Long, pageable: Pageable): Page<Recipe>
+
+    fun countByIsCustomTrueAndAuthorId(authorId: Long): Long
 }

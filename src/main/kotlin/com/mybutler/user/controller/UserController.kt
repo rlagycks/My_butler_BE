@@ -2,6 +2,8 @@ package com.mybutler.user.controller
 
 import com.mybutler.common.response.ApiResponse
 import com.mybutler.common.security.CustomUserDetails
+import com.mybutler.community.dto.MyProfileResponse
+import com.mybutler.community.service.PostService
 import com.mybutler.user.dto.*
 import com.mybutler.user.service.UserService
 import io.swagger.v3.oas.annotations.Operation
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.*
 @SecurityRequirement(name = "Bearer Authentication")
 class UserController(
     private val userService: UserService,
+    private val postService: PostService,
 ) {
     @Operation(summary = "내 프로필 조회")
     @GetMapping("/me")
@@ -50,6 +53,14 @@ class UserController(
         @AuthenticationPrincipal userDetails: CustomUserDetails,
     ): ApiResponse<UserPreferenceResponse> {
         return ApiResponse.ok(userService.getPreferences(userDetails.userId))
+    }
+
+    @Operation(summary = "마이프로필 홈 (페이지 초기 로딩)")
+    @GetMapping("/me/profile")
+    fun getMyProfileHome(
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
+    ): ApiResponse<MyProfileResponse> {
+        return ApiResponse.ok(postService.getMyProfile(userDetails.userId))
     }
 
     @Operation(summary = "닉네임 변경")

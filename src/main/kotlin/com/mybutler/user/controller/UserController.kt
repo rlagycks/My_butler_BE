@@ -2,6 +2,8 @@ package com.mybutler.user.controller
 
 import com.mybutler.common.response.ApiResponse
 import com.mybutler.common.security.CustomUserDetails
+import com.mybutler.community.dto.MyProfileResponse
+import com.mybutler.community.service.PostService
 import com.mybutler.user.dto.*
 import com.mybutler.user.service.UserService
 import io.swagger.v3.oas.annotations.Operation
@@ -10,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.*
+import org.springframework.web.multipart.MultipartFile
 
 @Tag(name = "User", description = "사용자 API")
 @RestController
@@ -17,6 +20,7 @@ import org.springframework.web.bind.annotation.*
 @SecurityRequirement(name = "Bearer Authentication")
 class UserController(
     private val userService: UserService,
+    private val postService: PostService,
 ) {
     @Operation(summary = "내 프로필 조회")
     @GetMapping("/me")
@@ -52,6 +56,14 @@ class UserController(
         return ApiResponse.ok(userService.getPreferences(userDetails.userId))
     }
 
+    @Operation(summary = "마이프로필 홈 (페이지 초기 로딩)")
+    @GetMapping("/me/profile")
+    fun getMyProfileHome(
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
+    ): ApiResponse<MyProfileResponse> {
+        return ApiResponse.ok(postService.getMyProfile(userDetails.userId))
+    }
+
     @Operation(summary = "닉네임 변경")
     @PatchMapping("/me/username")
     fun updateUsername(
@@ -59,5 +71,14 @@ class UserController(
         @Valid @RequestBody request: UpdateUsernameRequest,
     ): ApiResponse<UsernameResponse> {
         return ApiResponse.ok(userService.updateUsername(userDetails.userId, request))
+    }
+
+    @Operation(summary = "프로필 이미지 업로드")
+    @PatchMapping("/me/profile-image", consumes = ["multipart/form-data"])
+    fun uploadProfileImage(
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
+        @RequestParam("file") file: MultipartFile,
+    ): ApiResponse<UserProfileResponse> {
+        return ApiResponse.ok(userService.uploadProfileImage(userDetails.userId, file))
     }
 }

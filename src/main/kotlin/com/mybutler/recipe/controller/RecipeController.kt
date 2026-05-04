@@ -32,6 +32,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.multipart.MultipartFile
 
 @Tag(name = "Recipe", description = "레시피 API")
 @RestController
@@ -63,7 +64,7 @@ class RecipeController(
     }
 
     @Operation(summary = "나만의 레시피 목록/검색")
-    @GetMapping("/custom")
+    @GetMapping("/my")
     fun getCustomRecipes(
         @AuthenticationPrincipal userDetails: CustomUserDetails,
         @RequestParam(required = false) keyword: String?,
@@ -75,7 +76,7 @@ class RecipeController(
     }
 
     @Operation(summary = "재고 기반 레시피 추천")
-    @GetMapping("/recommendations/inventory")
+    @GetMapping("/recommended/by-inventory")
     fun getInventoryRecommendations(
         @AuthenticationPrincipal userDetails: CustomUserDetails,
     ): ApiResponse<RecipeRecommendationResponse> {
@@ -83,7 +84,7 @@ class RecipeController(
     }
 
     @Operation(summary = "취향 기반 레시피 추천")
-    @GetMapping("/recommendations/preference")
+    @GetMapping("/recommended/by-preference")
     fun getPreferenceRecommendations(
         @AuthenticationPrincipal userDetails: CustomUserDetails,
     ): ApiResponse<List<RecipeSummaryResponse>> {
@@ -99,7 +100,7 @@ class RecipeController(
     }
 
     @Operation(summary = "나만의 레시피 등록")
-    @PostMapping("/custom")
+    @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     fun create(
         @AuthenticationPrincipal userDetails: CustomUserDetails,
@@ -109,7 +110,7 @@ class RecipeController(
     }
 
     @Operation(summary = "나만의 레시피 수정")
-    @PutMapping("/custom/{id}")
+    @PutMapping("/{id}")
     fun update(
         @AuthenticationPrincipal userDetails: CustomUserDetails,
         @PathVariable id: Long,
@@ -119,12 +120,22 @@ class RecipeController(
     }
 
     @Operation(summary = "나만의 레시피 삭제")
-    @DeleteMapping("/custom/{id}")
+    @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun delete(
         @AuthenticationPrincipal userDetails: CustomUserDetails,
         @PathVariable id: Long,
     ) {
         recipeService.delete(userDetails.userId, id)
+    }
+
+    @Operation(summary = "나만의 레시피 썸네일 업로드")
+    @PostMapping("/{id}/thumbnail", consumes = ["multipart/form-data"])
+    fun uploadThumbnail(
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
+        @PathVariable id: Long,
+        @RequestParam("file") file: MultipartFile,
+    ): ApiResponse<RecipeDetailResponse> {
+        return ApiResponse.ok(recipeService.uploadThumbnail(userDetails.userId, id, file))
     }
 }

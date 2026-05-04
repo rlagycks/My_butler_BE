@@ -14,4 +14,6 @@ interface InventoryItemRepository : JpaRepository<InventoryItem, Long> {
     fun findByUserId(userId: Long, pageable: Pageable): Page<InventoryItem>
 
     fun findByUserIdAndCategory(userId: Long, category: Category, pageable: Pageable): Page<InventoryItem>
+
+    fun findAllByIsOpenedTrue(): List<InventoryItem>
 }

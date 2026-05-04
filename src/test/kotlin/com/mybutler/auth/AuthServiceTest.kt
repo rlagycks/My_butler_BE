@@ -2,11 +2,13 @@ package com.mybutler.auth
 
 import com.mybutler.auth.dto.LoginRequest
 import com.mybutler.auth.dto.RegisterRequest
+import com.mybutler.auth.event.PasswordResetRequestedEvent
 import com.mybutler.auth.entity.RefreshToken
 import com.mybutler.auth.entity.User
 import com.mybutler.auth.repository.RefreshTokenRepository
 import com.mybutler.auth.repository.UserRepository
 import com.mybutler.auth.service.AuthService
+import com.mybutler.auth.service.PasswordResetTokenStore
 import com.mybutler.common.exception.BusinessException
 import com.mybutler.common.exception.ErrorCode
 import com.mybutler.common.security.JwtTokenProvider
@@ -15,12 +17,14 @@ import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
-import org.mockito.InjectMocks
 import org.mockito.Mock
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.given
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import java.time.LocalDateTime
 import java.util.Optional
@@ -31,6 +35,8 @@ class AuthServiceTest {
     @Mock lateinit var userRepository: UserRepository
     @Mock lateinit var refreshTokenRepository: RefreshTokenRepository
     @Mock lateinit var jwtTokenProvider: JwtTokenProvider
+    @Mock lateinit var passwordResetTokenStore: PasswordResetTokenStore
+    @Mock lateinit var applicationEventPublisher: ApplicationEventPublisher
 
     private val passwordEncoder = BCryptPasswordEncoder()
     private val refreshTokenExpiryMs = 604_800_000L
@@ -44,6 +50,8 @@ class AuthServiceTest {
             refreshTokenRepository = refreshTokenRepository,
             passwordEncoder = passwordEncoder,
             jwtTokenProvider = jwtTokenProvider,
+            passwordResetTokenStore = passwordResetTokenStore,
+            applicationEventPublisher = applicationEventPublisher,
             refreshTokenExpiryMs = refreshTokenExpiryMs,
         )
     }
@@ -144,5 +152,52 @@ class AuthServiceTest {
         assertThatThrownBy { authService.login(LoginRequest("test@email.com", "WrongPw1!")) }
             .isInstanceOf(BusinessException::class.java)
             .extracting("errorCode").isEqualTo(ErrorCode.INVALID_CREDENTIALS)
+    }
+
+    @Test
+    fun `requestPasswordReset - 이메일 존재하면 토큰 저장 후 이벤트 발행`() {
+        val user = User(id = 1L, email = "test@email.com", username = "testuser",
+            password = "encoded", termsAgreed = true, privacyAgreed = true)
+        given(userRepository.findByEmail("test@email.com")).willReturn(Optional.of(user))
+
+        authService.requestPasswordReset("test@email.com")
+
+        verify(passwordResetTokenStore).save(any<String>(), any<String>())
+        val eventCaptor = argumentCaptor<PasswordResetRequestedEvent>()
+        verify(applicationEventPublisher).publishEvent(eventCaptor.capture())
+        assertThat(eventCaptor.firstValue.email).isEqualTo("test@email.com")
+        assertThat(eventCaptor.firstValue.token).isNotBlank()
+    }
+
+    @Test
+    fun `requestPasswordReset - 이메일 존재하지 않으면 아무것도 하지 않음`() {
+        given(userRepository.findByEmail("none@email.com")).willReturn(Optional.empty())
+
+        authService.requestPasswordReset("none@email.com")
+
+        verify(passwordResetTokenStore, never()).save(any<String>(), any<String>())
+        verify(applicationEventPublisher, never()).publishEvent(any<Any>())
+    }
+
+    @Test
+    fun `resetPassword - 유효한 토큰으로 비밀번호 변경`() {
+        val user = User(id = 1L, email = "test@email.com", username = "testuser",
+            password = passwordEncoder.encode("OldPw1!"), termsAgreed = true, privacyAgreed = true)
+        given(passwordResetTokenStore.getEmail("valid-token")).willReturn("test@email.com")
+        given(userRepository.findByEmail("test@email.com")).willReturn(Optional.of(user))
+
+        authService.resetPassword("valid-token", "NewPw1!")
+
+        assertThat(passwordEncoder.matches("NewPw1!", user.password)).isTrue()
+        verify(passwordResetTokenStore).delete("valid-token")
+    }
+
+    @Test
+    fun `resetPassword - 만료된 토큰이면 PASSWORD_RESET_TOKEN_EXPIRED 예외`() {
+        given(passwordResetTokenStore.getEmail("expired-token")).willReturn(null)
+
+        assertThatThrownBy { authService.resetPassword("expired-token", "NewPw1!") }
+            .isInstanceOf(BusinessException::class.java)
+            .extracting("errorCode").isEqualTo(ErrorCode.PASSWORD_RESET_TOKEN_EXPIRED)
     }
 }

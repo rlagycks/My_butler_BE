@@ -11,6 +11,7 @@ import com.mybutler.inventory.entity.InventoryItem
 import com.mybutler.inventory.entity.LevelStatus
 import com.mybutler.inventory.repository.InventoryItemRepository
 import com.mybutler.inventory.service.InventoryService
+import com.mybutler.recipe.service.BaseRecipeLoader
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -21,7 +22,10 @@ import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.given
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
+import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.PageRequest
 import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.util.Optional
@@ -30,12 +34,13 @@ import java.util.Optional
 class InventoryServiceTest {
 
     @Mock lateinit var inventoryItemRepository: InventoryItemRepository
+    @Mock lateinit var baseRecipeLoader: BaseRecipeLoader
 
     private lateinit var inventoryService: InventoryService
 
     @BeforeEach
     fun setUp() {
-        inventoryService = InventoryService(inventoryItemRepository)
+        inventoryService = InventoryService(inventoryItemRepository, baseRecipeLoader)
     }
 
     @Test
@@ -318,6 +323,7 @@ class InventoryServiceTest {
         given(inventoryItemRepository.findAllByUserId(userId)).willReturn(
             listOf(dangerItem, warningItem, normalItem, unopenedItem)
         )
+        given(baseRecipeLoader.loadAll()).willReturn(emptyList())
 
         val result = inventoryService.getInsights(userId)
 
@@ -328,6 +334,19 @@ class InventoryServiceTest {
         assertThat(result.categoryBreakdown.associate { it.category to it.count }).containsEntry(Category.GIN, 1L)
         assertThat(result.categoryBreakdown.associate { it.category to it.count }).containsEntry(Category.RUM, 1L)
         assertThat(result.expiryWarningItems).hasSize(2)
+    }
+
+    @Test
+    fun `getHome - 재고가 비어 있으면 레시피 로더를 호출하지 않음`() {
+        val userId = 1L
+        val pageable = PageRequest.of(0, 20)
+        given(inventoryItemRepository.findAllByUserId(userId)).willReturn(emptyList())
+        given(inventoryItemRepository.findByUserId(userId, pageable)).willReturn(PageImpl(emptyList(), pageable, 0))
+
+        val result = inventoryService.getHome(userId, pageable)
+
+        assertThat(result.insights.availableRecipeCount).isEqualTo(0)
+        verify(baseRecipeLoader, never()).loadAll()
     }
 
     private fun inventoryItem(

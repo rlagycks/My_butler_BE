@@ -33,6 +33,9 @@ class User(
     @Column
     var drinkingFrequency: DrinkingFrequency? = null,
 
+    @Column(name = "profile_image_url", length = 512)
+    var profileImageUrl: String? = null,
+
     @Column(nullable = false)
     var onboardingCompleted: Boolean = false,
 

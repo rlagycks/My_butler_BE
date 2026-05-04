@@ -21,4 +21,16 @@ class AsyncConfig {
             initialize()
         }
     }
+
+    @Bean(name = ["notificationTaskExecutor"])
+    fun notificationTaskExecutor(): Executor {
+        return ThreadPoolTaskExecutor().apply {
+            corePoolSize = 2
+            maxPoolSize = 4
+            queueCapacity = 200
+            setThreadNamePrefix("notification-")
+            setWaitForTasksToCompleteOnShutdown(true)
+            initialize()
+        }
+    }
 }

@@ -9,8 +9,11 @@ import com.mybutler.community.dto.CommentPageResponse
 import com.mybutler.community.dto.CommentResponse
 import com.mybutler.community.dto.ReplyResponse
 import com.mybutler.community.entity.PostComment
+import com.mybutler.community.event.CommentRepliedEvent
+import com.mybutler.community.event.PostCommentedEvent
 import com.mybutler.community.repository.PostCommentRepository
 import com.mybutler.community.repository.PostRepository
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.domain.Pageable
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
@@ -22,6 +25,7 @@ class PostCommentService(
     private val postRepository: PostRepository,
     private val postCommentRepository: PostCommentRepository,
     private val userRepository: UserRepository,
+    private val eventPublisher: ApplicationEventPublisher,
 ) {
     fun getComments(postId: Long, currentUserId: Long, pageable: Pageable): CommentPageResponse {
         val page = postCommentRepository.findByPostIdAndParentCommentIdIsNull(postId, pageable)
@@ -80,6 +84,7 @@ class PostCommentService(
             PostComment(postId = postId, authorId = userId, content = content),
         )
         post.commentCount++
+        eventPublisher.publishEvent(PostCommentedEvent(postId = postId, postAuthorId = post.authorId, actorUserId = userId))
 
         return CommentCreateResponse(id = comment.id, content = comment.content, createdAt = comment.createdAt)
     }
@@ -115,6 +120,13 @@ class PostCommentService(
             PostComment(postId = postId, parentCommentId = parentCommentId, authorId = userId, content = content),
         )
         post.commentCount++
+        eventPublisher.publishEvent(
+            CommentRepliedEvent(
+                postId = postId,
+                parentCommentAuthorId = parentComment.authorId,
+                actorUserId = userId,
+            ),
+        )
 
         return CommentCreateResponse(id = reply.id, content = reply.content, createdAt = reply.createdAt)
     }

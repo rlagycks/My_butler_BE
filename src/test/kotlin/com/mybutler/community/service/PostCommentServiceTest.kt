@@ -20,6 +20,7 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
 import java.util.Optional
@@ -30,6 +31,7 @@ class PostCommentServiceTest {
     @Mock lateinit var postRepository: PostRepository
     @Mock lateinit var postCommentRepository: PostCommentRepository
     @Mock lateinit var userRepository: UserRepository
+    @Mock lateinit var eventPublisher: ApplicationEventPublisher
 
     private lateinit var postCommentService: PostCommentService
 
@@ -39,6 +41,7 @@ class PostCommentServiceTest {
             postRepository = postRepository,
             postCommentRepository = postCommentRepository,
             userRepository = userRepository,
+            eventPublisher = eventPublisher,
         )
     }
 

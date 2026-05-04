@@ -65,6 +65,11 @@ enum class ErrorCode(
     COMMENT_REPLY_DEPTH_EXCEEDED(HttpStatus.BAD_REQUEST, "COMMENT_005", "대댓글에는 다시 답글을 작성할 수 없습니다."),
     POST_IMAGE_COUNT_EXCEEDED(HttpStatus.BAD_REQUEST, "FILE_003", "이미지는 최대 10장까지 업로드할 수 있습니다."),
 
+    // Notification
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTI_001", "해당 알림을 찾을 수 없습니다."),
+    NOTIFICATION_ACCESS_DENIED(HttpStatus.FORBIDDEN, "NOTI_002", "본인의 알림만 처리할 수 있습니다."),
+    NOTIFICATION_ALREADY_READ(HttpStatus.CONFLICT, "NOTI_003", "이미 읽음 처리된 알림입니다."),
+
     // Storage
     FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "STORAGE_001", "파일 업로드에 실패했습니다."),
     INVALID_FILE_TYPE(HttpStatus.BAD_REQUEST, "STORAGE_002", "지원하지 않는 파일 형식입니다."),

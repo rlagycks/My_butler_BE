@@ -18,12 +18,14 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.springframework.context.ApplicationEventPublisher
 
 @ExtendWith(MockitoExtension::class)
 class PostLikeServiceTest {
 
     @Mock lateinit var postRepository: PostRepository
     @Mock lateinit var postLikeRepository: PostLikeRepository
+    @Mock lateinit var eventPublisher: ApplicationEventPublisher
 
     private lateinit var postLikeService: PostLikeService
 
@@ -32,6 +34,7 @@ class PostLikeServiceTest {
         postLikeService = PostLikeService(
             postRepository = postRepository,
             postLikeRepository = postLikeRepository,
+            eventPublisher = eventPublisher,
         )
     }
 

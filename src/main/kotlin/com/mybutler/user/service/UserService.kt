@@ -98,10 +98,14 @@ class UserService(
 
     fun getBrewingHistory(userId: Long, pageable: Pageable): BrewingHistoryResponse {
         val page = arSessionRepository.findAllByUserId(userId, pageable)
-        val recipeIds = page.content.map { it.recipeId }.distinct()
-        val recipeNames = recipeRepository.findAllById(recipeIds).associate { it.id to it.name }
+        val recipeIds = page.content.mapNotNull { it.recipeId }.distinct()
+        val recipeNames = if (recipeIds.isEmpty()) {
+            emptyMap()
+        } else {
+            recipeRepository.findAllById(recipeIds).associate { it.id to it.name }
+        }
         val entries = page.content.map { session ->
-            BrewingHistoryEntry.from(session, recipeNames[session.recipeId] ?: "")
+            BrewingHistoryEntry.from(session, session.recipeId?.let(recipeNames::get) ?: "")
         }
         return BrewingHistoryResponse(
             content = entries,

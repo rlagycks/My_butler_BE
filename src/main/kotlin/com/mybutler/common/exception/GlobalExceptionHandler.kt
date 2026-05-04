@@ -9,6 +9,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
+import org.springframework.web.multipart.support.MissingServletRequestPartException
 import org.springframework.web.servlet.resource.NoResourceFoundException
 
 @RestControllerAdvice
@@ -61,6 +62,15 @@ class GlobalExceptionHandler {
         return ResponseEntity
             .status(HttpStatus.BAD_REQUEST)
             .body(ErrorResponse.of(ErrorCode.INVALID_INPUT))
+    }
+
+    @ExceptionHandler(MissingServletRequestPartException::class)
+    fun handleMissingServletRequestPartException(e: MissingServletRequestPartException): ResponseEntity<ErrorResponse> {
+        log.warn("Missing request part: {}", e.requestPartName)
+        val errorCode = if (e.requestPartName == "photo") ErrorCode.AR_PHOTO_REQUIRED else ErrorCode.INVALID_INPUT
+        return ResponseEntity
+            .status(errorCode.status)
+            .body(ErrorResponse.of(errorCode))
     }
 
     @ExceptionHandler(NoResourceFoundException::class)

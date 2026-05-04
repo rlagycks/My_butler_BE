@@ -19,8 +19,8 @@ class ArSession(
     @Column(name = "user_id", nullable = false)
     val userId: Long,
 
-    @Column(name = "recipe_id", nullable = false)
-    val recipeId: Long,
+    @Column(name = "recipe_id")
+    val recipeId: Long? = null,
 
     @Column(name = "post_id")
     val postId: Long? = null,

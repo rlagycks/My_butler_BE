@@ -27,9 +27,14 @@ import org.mockito.Mock
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.any
 import org.mockito.kotlin.given
+import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
+import org.springframework.cache.CacheManager
+import org.springframework.cache.concurrent.ConcurrentMapCacheManager
+import org.springframework.cache.interceptor.SimpleKey
 import org.springframework.mock.web.MockMultipartFile
+import org.springframework.transaction.TransactionStatus
 import org.springframework.transaction.support.TransactionCallback
 import org.springframework.transaction.support.TransactionTemplate
 import java.math.BigDecimal
@@ -48,6 +53,7 @@ class ArServiceTest {
 
     private lateinit var arService: ArService
     private val imageUploadValidator = ImageUploadValidator()
+    private val cacheManager: CacheManager = ConcurrentMapCacheManager("baseRecipes")
 
     private val jpegPhoto = MockMultipartFile("photo", "photo.jpg", "image/jpeg", "data".toByteArray())
 
@@ -55,7 +61,7 @@ class ArServiceTest {
     fun setUp() {
         arService = ArService(
             recipeRepository, postRepository, recipeRatingRepository,
-            arSessionRepository, storageService, imageUploadValidator, transactionTemplate,
+            arSessionRepository, storageService, imageUploadValidator, transactionTemplate, cacheManager,
         )
     }
 
@@ -144,26 +150,54 @@ class ArServiceTest {
     @Test
     fun `submitSession - 성공 시 ArSessionResponse 반환`() {
         val request = ArSessionRequest(recipeId = 1L, rating = 4, caption = "Good!")
-        val post = Post(id = 7L, authorId = 1L, recipeId = 1L, type = PostType.PHOTO, isArGenerated = true)
-        val session = ArSession(
-            id = 3L, userId = 1L, recipeId = 1L, postId = 7L,
-            rating = 4, caption = "Good!", photoUrl = "posts/photo.jpg",
-            createdAt = LocalDateTime.now(),
-        )
-        val expectedResponse = com.mybutler.ar.dto.ArSessionResponse(
-            sessionId = 3L, postId = 7L, recipeId = 1L, rating = 4,
-            caption = "Good!", photoUrl = "posts/photo.jpg", createdAt = session.createdAt,
-        )
+        val recipe = recipe(id = 1L)
+        val createdAt = LocalDateTime.now()
+        cacheManager.getCache("baseRecipes")!!.put(SimpleKey.EMPTY, listOf(recipe))
 
         given(recipeRepository.existsById(1L)).willReturn(true)
+        given(recipeRepository.findByIdForUpdate(1L)).willReturn(recipe)
         given(storageService.upload(any(), any())).willReturn("posts/photo.jpg")
-        given(transactionTemplate.execute(any<TransactionCallback<*>>())).willReturn(expectedResponse)
+        given(postRepository.save(any<Post>())).willReturn(
+            Post(
+                id = 7L,
+                authorId = 1L,
+                recipeId = 1L,
+                type = PostType.PHOTO,
+                caption = "Good!",
+                isArGenerated = true,
+                arRating = 4,
+            ),
+        )
+        given(recipeRatingRepository.findByRecipeIdAndUserId(1L, 1L)).willReturn(null)
+        given(recipeRatingRepository.save(any<RecipeRating>())).willReturn(RecipeRating(recipeId = 1L, userId = 1L, score = 4))
+        given(recipeRatingRepository.countByRecipeId(1L)).willReturn(1L)
+        given(recipeRatingRepository.calculateAverageScore(1L)).willReturn(4.0)
+        given(arSessionRepository.save(any<ArSession>())).willAnswer {
+            val session = it.getArgument<ArSession>(0)
+            ArSession(
+                id = 3L,
+                userId = session.userId,
+                recipeId = session.recipeId,
+                postId = session.postId,
+                rating = session.rating,
+                caption = session.caption,
+                photoUrl = session.photoUrl,
+                createdAt = createdAt,
+            )
+        }
+        given(transactionTemplate.execute(any<TransactionCallback<*>>())).willAnswer {
+            val callback = it.getArgument<TransactionCallback<Any?>>(0)
+            callback.doInTransaction(mock<TransactionStatus>())
+        }
 
         val result = arService.submitSession(1L, request, jpegPhoto)
 
         assertThat(result.sessionId).isEqualTo(3L)
         assertThat(result.postId).isEqualTo(7L)
         assertThat(result.rating).isEqualTo(4)
+        assertThat(recipe.averageRating).isEqualByComparingTo(BigDecimal("4.00"))
+        assertThat(recipe.ratingCount).isEqualTo(1)
+        assertThat(cacheManager.getCache("baseRecipes")!!.get(SimpleKey.EMPTY)).isNull()
         verify(storageService, never()).delete(any())
     }
 

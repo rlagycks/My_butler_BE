@@ -192,11 +192,29 @@ class UserServiceTest {
     fun `getBrewingHistory - 세션 없으면 빈 목록 반환`() {
         val pageable = PageRequest.of(0, 20)
         given(arSessionRepository.findAllByUserId(99L, pageable)).willReturn(PageImpl(emptyList(), pageable, 0))
-        given(recipeRepository.findAllById(emptyList())).willReturn(emptyList())
 
         val result = userService.getBrewingHistory(99L, pageable)
 
         assertThat(result.content).isEmpty()
         assertThat(result.totalElements).isEqualTo(0L)
+        verify(recipeRepository, never()).findAllById(any<Iterable<Long>>())
+    }
+
+    @Test
+    fun `getBrewingHistory - 삭제된 레시피여도 세션은 유지된다`() {
+        val pageable = PageRequest.of(0, 20)
+        val session = ArSession(
+            id = 2L, userId = 1L, recipeId = null, postId = 6L,
+            rating = 5, caption = "다시 만들고 싶어요", photoUrl = "posts/photo2.jpg",
+            createdAt = LocalDateTime.now(),
+        )
+        given(arSessionRepository.findAllByUserId(1L, pageable)).willReturn(PageImpl(listOf(session), pageable, 1))
+
+        val result = userService.getBrewingHistory(1L, pageable)
+
+        assertThat(result.content).hasSize(1)
+        assertThat(result.content[0].recipeId).isNull()
+        assertThat(result.content[0].recipeName).isEmpty()
+        verify(recipeRepository, never()).findAllById(any<Iterable<Long>>())
     }
 }

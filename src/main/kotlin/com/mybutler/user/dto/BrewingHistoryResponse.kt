@@ -5,7 +5,7 @@ import java.time.LocalDateTime
 
 data class BrewingHistoryEntry(
     val sessionId: Long,
-    val recipeId: Long,
+    val recipeId: Long?,
     val recipeName: String,
     val rating: Int,
     val caption: String?,

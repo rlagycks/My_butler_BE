@@ -16,6 +16,8 @@ import com.mybutler.community.repository.PostRepository
 import com.mybutler.recipe.entity.RecipeRating
 import com.mybutler.recipe.repository.RecipeRatingRepository
 import com.mybutler.recipe.repository.RecipeRepository
+import org.springframework.cache.CacheManager
+import org.springframework.cache.interceptor.SimpleKey
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -37,6 +39,7 @@ class ArService(
     private val storageService: StorageService,
     private val imageUploadValidator: ImageUploadValidator,
     private val transactionTemplate: TransactionTemplate,
+    private val cacheManager: CacheManager,
 ) {
     fun getArRecipe(recipeId: Long): ArRecipeResponse {
         val recipe = recipeRepository.findByIdOrNull(recipeId)
@@ -125,5 +128,9 @@ class ArService(
             BigDecimal.ZERO
         }
         recipe.ratingCount = count.toInt()
+
+        if (!recipe.isCustom) {
+            cacheManager.getCache("baseRecipes")?.evict(SimpleKey.EMPTY)
+        }
     }
 }

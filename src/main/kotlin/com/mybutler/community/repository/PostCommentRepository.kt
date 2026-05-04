@@ -8,8 +8,8 @@ import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 
 interface PostCommentRepository : JpaRepository<PostComment, Long> {
-    fun findByPostIdAndParentCommentIdIsNull(postId: Long, pageable: Pageable): Page<PostComment>
-    fun findAllByParentCommentIdIn(parentIds: List<Long>): List<PostComment>
+    fun findByPostIdAndParentCommentIdIsNullOrderByCreatedAtAsc(postId: Long, pageable: Pageable): Page<PostComment>
+    fun findAllByParentCommentIdInOrderByParentCommentIdAscCreatedAtAsc(parentIds: List<Long>): List<PostComment>
     fun countByParentCommentId(parentCommentId: Long): Long
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)

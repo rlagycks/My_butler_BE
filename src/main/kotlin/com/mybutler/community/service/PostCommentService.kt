@@ -28,11 +28,11 @@ class PostCommentService(
     private val eventPublisher: ApplicationEventPublisher,
 ) {
     fun getComments(postId: Long, currentUserId: Long, pageable: Pageable): CommentPageResponse {
-        val page = postCommentRepository.findByPostIdAndParentCommentIdIsNull(postId, pageable)
+        val page = postCommentRepository.findByPostIdAndParentCommentIdIsNullOrderByCreatedAtAsc(postId, pageable)
         val topLevelComments = page.content
 
         val replies = if (topLevelComments.isNotEmpty()) {
-            postCommentRepository.findAllByParentCommentIdIn(topLevelComments.map { it.id })
+            postCommentRepository.findAllByParentCommentIdInOrderByParentCommentIdAscCreatedAtAsc(topLevelComments.map { it.id })
         } else {
             emptyList()
         }

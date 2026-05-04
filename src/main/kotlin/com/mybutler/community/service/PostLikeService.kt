@@ -20,11 +20,11 @@ class PostLikeService(
     private val eventPublisher: ApplicationEventPublisher,
 ) {
     fun addLike(postId: Long, userId: Long): LikeResponse {
+        val post = postRepository.findByIdForUpdate(postId)
+            ?: throw BusinessException(ErrorCode.POST_NOT_FOUND)
         if (postLikeRepository.existsByPostIdAndUserId(postId, userId)) {
             throw BusinessException(ErrorCode.POST_LIKE_ALREADY_EXISTS)
         }
-        val post = postRepository.findByIdForUpdate(postId)
-            ?: throw BusinessException(ErrorCode.POST_NOT_FOUND)
         post.likeCount++
         postLikeRepository.save(PostLike(postId = postId, userId = userId))
         eventPublisher.publishEvent(PostLikedEvent(postId = postId, postAuthorId = post.authorId, actorUserId = userId))

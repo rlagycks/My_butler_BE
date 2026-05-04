@@ -19,6 +19,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springdoc.core.annotations.ParameterObject
 import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Sort
 import org.springframework.data.web.PageableDefault
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -118,7 +119,7 @@ class PostController(
     fun getComments(
         @AuthenticationPrincipal userDetails: CustomUserDetails,
         @PathVariable id: Long,
-        @ParameterObject @PageableDefault(size = 20) pageable: Pageable,
+        @ParameterObject @PageableDefault(size = 20, sort = ["createdAt"], direction = Sort.Direction.ASC) pageable: Pageable,
     ): ApiResponse<CommentPageResponse> {
         return ApiResponse.ok(postCommentService.getComments(id, userDetails.userId, pageable))
     }

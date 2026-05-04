@@ -28,6 +28,7 @@ import com.mybutler.community.repository.PostRepository
 import com.mybutler.recipe.repository.RecipeRepository
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Sort
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -116,7 +117,7 @@ class PostService(
         val commentsPage = postCommentService.getComments(
             postId = postId,
             currentUserId = currentUserId,
-            pageable = PageRequest.of(0, 20),
+            pageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.ASC, "createdAt")),
         )
 
         return PostDetailResponse(

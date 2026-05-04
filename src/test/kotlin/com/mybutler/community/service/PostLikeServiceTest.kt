@@ -43,8 +43,8 @@ class PostLikeServiceTest {
     @Test
     fun `addLike - 성공 시 likeCount 증가 및 isLiked true 반환`() {
         val post = post(id = 1L, likeCount = 5)
-        whenever(postLikeRepository.existsByPostIdAndUserId(1L, 10L)).thenReturn(false)
         whenever(postRepository.findByIdForUpdate(1L)).thenReturn(post)
+        whenever(postLikeRepository.existsByPostIdAndUserId(1L, 10L)).thenReturn(false)
         whenever(postLikeRepository.save(any())).thenAnswer { it.arguments[0] }
 
         val result = postLikeService.addLike(postId = 1L, userId = 10L)
@@ -56,6 +56,7 @@ class PostLikeServiceTest {
 
     @Test
     fun `addLike - 이미 좋아요한 경우 POST_LIKE_ALREADY_EXISTS 예외`() {
+        whenever(postRepository.findByIdForUpdate(1L)).thenReturn(post(id = 1L))
         whenever(postLikeRepository.existsByPostIdAndUserId(1L, 10L)).thenReturn(true)
 
         val ex = assertThrows<BusinessException> {
@@ -63,12 +64,11 @@ class PostLikeServiceTest {
         }
 
         assertThat(ex.errorCode).isEqualTo(ErrorCode.POST_LIKE_ALREADY_EXISTS)
-        verify(postRepository, never()).findByIdForUpdate(any())
+        verify(postLikeRepository, never()).save(any())
     }
 
     @Test
     fun `addLike - 게시물이 없으면 POST_NOT_FOUND 예외`() {
-        whenever(postLikeRepository.existsByPostIdAndUserId(1L, 10L)).thenReturn(false)
         whenever(postRepository.findByIdForUpdate(1L)).thenReturn(null)
 
         val ex = assertThrows<BusinessException> {
@@ -76,6 +76,7 @@ class PostLikeServiceTest {
         }
 
         assertThat(ex.errorCode).isEqualTo(ErrorCode.POST_NOT_FOUND)
+        verify(postLikeRepository, never()).existsByPostIdAndUserId(any(), any())
         verify(postLikeRepository, never()).save(any())
     }
 

@@ -240,9 +240,10 @@ class PostCommentServiceTest {
         val user2 = User(id = 2L, email = "a@test.com", username = "userA", password = "pw")
         val user3 = User(id = 3L, email = "b@test.com", username = "userB", password = "pw")
 
-        whenever(postCommentRepository.findByPostIdAndParentCommentIdIsNull(1L, pageable))
+        whenever(postCommentRepository.findByPostIdAndParentCommentIdIsNullOrderByCreatedAtAsc(1L, pageable))
             .thenReturn(PageImpl(listOf(comment), pageable, 1L))
-        whenever(postCommentRepository.findAllByParentCommentIdIn(listOf(10L))).thenReturn(listOf(reply))
+        whenever(postCommentRepository.findAllByParentCommentIdInOrderByParentCommentIdAscCreatedAtAsc(listOf(10L)))
+            .thenReturn(listOf(reply))
         whenever(userRepository.findAllById(setOf(2L, 3L))).thenReturn(listOf(user2, user3))
 
         val result = postCommentService.getComments(postId = 1L, currentUserId = 2L, pageable = pageable)

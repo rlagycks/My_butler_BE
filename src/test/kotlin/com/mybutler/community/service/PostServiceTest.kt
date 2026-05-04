@@ -5,6 +5,7 @@ import com.mybutler.auth.repository.UserRepository
 import com.mybutler.common.exception.BusinessException
 import com.mybutler.common.exception.ErrorCode
 import com.mybutler.common.storage.StorageService
+import com.mybutler.common.util.ImageUploadValidator
 import com.mybutler.community.dto.CommentPageResponse
 import com.mybutler.community.dto.CreatePostRequest
 import com.mybutler.community.entity.Post
@@ -45,6 +46,7 @@ class PostServiceTest {
     @Mock lateinit var userRepository: UserRepository
     @Mock lateinit var recipeRepository: RecipeRepository
     @Mock lateinit var storageService: StorageService
+    @Mock lateinit var imageUploadValidator: ImageUploadValidator
     @Mock lateinit var postCommentService: PostCommentService
     @Mock lateinit var transactionTemplate: TransactionTemplate
 
@@ -59,6 +61,7 @@ class PostServiceTest {
             userRepository = userRepository,
             recipeRepository = recipeRepository,
             storageService = storageService,
+            imageUploadValidator = imageUploadValidator,
             postCommentService = postCommentService,
             transactionTemplate = transactionTemplate,
         )

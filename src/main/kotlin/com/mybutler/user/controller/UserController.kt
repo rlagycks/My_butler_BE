@@ -10,6 +10,10 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
+import org.springdoc.core.annotations.ParameterObject
+import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Sort
+import org.springframework.data.web.PageableDefault
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
@@ -80,5 +84,14 @@ class UserController(
         @RequestParam("file") file: MultipartFile,
     ): ApiResponse<UserProfileResponse> {
         return ApiResponse.ok(userService.uploadProfileImage(userDetails.userId, file))
+    }
+
+    @Operation(summary = "나의 양조 히스토리 조회")
+    @GetMapping("/me/history")
+    fun getBrewingHistory(
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
+        @ParameterObject @PageableDefault(size = 20, sort = ["createdAt"], direction = Sort.Direction.DESC) pageable: Pageable,
+    ): ApiResponse<BrewingHistoryResponse> {
+        return ApiResponse.ok(userService.getBrewingHistory(userDetails.userId, pageable))
     }
 }

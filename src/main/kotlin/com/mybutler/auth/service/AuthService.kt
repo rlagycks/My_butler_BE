@@ -98,7 +98,7 @@ class AuthService(
         refreshTokenRepository.deleteByUserId(userId)
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     fun requestPasswordReset(email: String) {
         val user = userRepository.findByEmail(email).orElse(null) ?: return
         val token = UUID.randomUUID().toString()

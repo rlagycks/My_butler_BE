@@ -4,6 +4,7 @@ import com.mybutler.auth.repository.UserRepository
 import com.mybutler.common.exception.BusinessException
 import com.mybutler.common.exception.ErrorCode
 import com.mybutler.common.storage.StorageService
+import com.mybutler.common.util.ImageUploadValidator
 import com.mybutler.community.dto.AuthorDto
 import com.mybutler.community.dto.CommentPageResponse
 import com.mybutler.community.dto.CreatePostRequest
@@ -47,6 +48,7 @@ class PostService(
     private val userRepository: UserRepository,
     private val recipeRepository: RecipeRepository,
     private val storageService: StorageService,
+    private val imageUploadValidator: ImageUploadValidator,
     private val postCommentService: PostCommentService,
     private val transactionTemplate: TransactionTemplate,
 ) {
@@ -150,6 +152,8 @@ class PostService(
         if (request.recipeId != null && !recipeRepository.existsById(request.recipeId)) {
             throw BusinessException(ErrorCode.RECIPE_NOT_FOUND)
         }
+
+        images.forEach { imageUploadValidator.validate(it) }
 
         val uploadedImageUrls = mutableListOf<String>()
 

@@ -2,6 +2,7 @@ package com.mybutler.common.storage
 
 import com.mybutler.common.exception.BusinessException
 import com.mybutler.common.exception.ErrorCode
+import com.mybutler.common.util.ImageUploadValidator
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
@@ -11,19 +12,16 @@ import java.util.UUID
 @Service
 class LocalStorageService(
     @Value("\${storage.local.upload-dir}") private val uploadDir: String,
+    private val imageUploadValidator: ImageUploadValidator,
 ) : StorageService {
 
-    private val allowedExtensions = setOf("jpg", "jpeg", "png", "webp")
-
     override fun upload(file: MultipartFile, directory: String): String {
+        imageUploadValidator.validate(file)
+
         val extension = file.originalFilename
             ?.substringAfterLast(".", "")
             ?.lowercase()
             ?: throw BusinessException(ErrorCode.INVALID_FILE_TYPE)
-
-        if (extension !in allowedExtensions) {
-            throw BusinessException(ErrorCode.INVALID_FILE_TYPE)
-        }
 
         val targetDir = File("$uploadDir/$directory").apply { mkdirs() }
         val fileName = "${UUID.randomUUID()}.$extension"

@@ -8,6 +8,7 @@ import com.mybutler.common.storage.StorageService
 import com.mybutler.community.dto.CommentPageResponse
 import com.mybutler.community.dto.CreatePostRequest
 import com.mybutler.community.entity.Post
+import com.mybutler.community.entity.PostLike
 import com.mybutler.community.entity.PostType
 import com.mybutler.community.repository.PostCommentRepository
 import com.mybutler.community.repository.PostLikeRepository
@@ -29,7 +30,7 @@ import org.mockito.kotlin.whenever
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
 import org.springframework.mock.web.MockMultipartFile
-import org.mockito.Mockito.mock
+import org.mockito.kotlin.mock
 import org.springframework.transaction.TransactionStatus
 import org.springframework.transaction.support.TransactionCallback
 import org.springframework.transaction.support.TransactionTemplate
@@ -110,7 +111,7 @@ class PostServiceTest {
     fun `getPostFeed - 좋아요한 게시물은 isLiked true`() {
         val pageable = PageRequest.of(0, 20)
         val post = post(id = 1L, authorId = 10L)
-        val like = com.mybutler.community.entity.PostLike(postId = 1L, userId = 10L)
+        val like = PostLike(postId = 1L, userId = 10L)
         whenever(postRepository.findAllForFeedLatest(pageable)).thenReturn(PageImpl(listOf(post), pageable, 1L))
         whenever(userRepository.findAllById(setOf(10L))).thenReturn(listOf(user(id = 10L)))
         whenever(postLikeRepository.findAllByUserIdAndPostIdIn(10L, listOf(1L))).thenReturn(listOf(like))
@@ -188,10 +189,7 @@ class PostServiceTest {
     fun `createPost - TEXT 타입 이미지 없이 성공`() {
         val request = CreatePostRequest(type = PostType.TEXT, caption = "hello")
         val savedPost = post(id = 1L, authorId = 10L, type = PostType.TEXT)
-        whenever(transactionTemplate.execute(any<TransactionCallback<*>>())).thenAnswer { invocation ->
-            val callback = invocation.getArgument<TransactionCallback<*>>(0)
-            callback.doInTransaction(mock(TransactionStatus::class.java))
-        }
+        stubTransactionTemplate()
         whenever(postRepository.save(any())).thenReturn(savedPost)
 
         val result = postService.createPost(userId = 10L, request = request, images = emptyList())
@@ -269,10 +267,7 @@ class PostServiceTest {
     @Test
     fun `deletePost - 성공 시 게시물 및 연관 데이터 삭제`() {
         val post = post(id = 1L, authorId = 10L)
-        whenever(transactionTemplate.execute(any<TransactionCallback<*>>())).thenAnswer { invocation ->
-            val callback = invocation.getArgument<TransactionCallback<*>>(0)
-            callback.doInTransaction(mock(TransactionStatus::class.java))
-        }
+        stubTransactionTemplate()
         whenever(postRepository.findById(1L)).thenReturn(Optional.of(post))
 
         postService.deletePost(postId = 1L, userId = 10L)
@@ -284,10 +279,7 @@ class PostServiceTest {
 
     @Test
     fun `deletePost - 존재하지 않는 게시물이면 POST_NOT_FOUND 예외`() {
-        whenever(transactionTemplate.execute(any<TransactionCallback<*>>())).thenAnswer { invocation ->
-            val callback = invocation.getArgument<TransactionCallback<*>>(0)
-            callback.doInTransaction(mock(TransactionStatus::class.java))
-        }
+        stubTransactionTemplate()
         whenever(postRepository.findById(99L)).thenReturn(Optional.empty())
 
         val ex = assertThrows<BusinessException> {
@@ -300,10 +292,7 @@ class PostServiceTest {
     @Test
     fun `deletePost - 작성자가 아니면 POST_AUTHOR_MISMATCH 예외`() {
         val post = post(id = 1L, authorId = 10L)
-        whenever(transactionTemplate.execute(any<TransactionCallback<*>>())).thenAnswer { invocation ->
-            val callback = invocation.getArgument<TransactionCallback<*>>(0)
-            callback.doInTransaction(mock(TransactionStatus::class.java))
-        }
+        stubTransactionTemplate()
         whenever(postRepository.findById(1L)).thenReturn(Optional.of(post))
 
         val ex = assertThrows<BusinessException> {
@@ -317,10 +306,7 @@ class PostServiceTest {
     @Test
     fun `deletePost - AR 생성 게시물은 POST_AR_GENERATED_NOT_DELETABLE 예외`() {
         val post = Post(id = 1L, authorId = 10L, type = PostType.PHOTO, isArGenerated = true)
-        whenever(transactionTemplate.execute(any<TransactionCallback<*>>())).thenAnswer { invocation ->
-            val callback = invocation.getArgument<TransactionCallback<*>>(0)
-            callback.doInTransaction(mock(TransactionStatus::class.java))
-        }
+        stubTransactionTemplate()
         whenever(postRepository.findById(1L)).thenReturn(Optional.of(post))
 
         val ex = assertThrows<BusinessException> {
@@ -332,6 +318,13 @@ class PostServiceTest {
     }
 
     // ── helpers ──────────────────────────────────────────────────────────
+
+    private fun stubTransactionTemplate() {
+        whenever(transactionTemplate.execute(any<TransactionCallback<*>>())).thenAnswer { invocation ->
+            val callback = invocation.getArgument<TransactionCallback<*>>(0)
+            callback.doInTransaction(mock<TransactionStatus>())
+        }
+    }
 
     private fun post(
         id: Long,

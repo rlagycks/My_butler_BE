@@ -1,5 +1,7 @@
 package com.mybutler.user
 
+import com.mybutler.ar.entity.ArSession
+import com.mybutler.ar.repository.ArSessionRepository
 import com.mybutler.auth.entity.AgeGroup
 import com.mybutler.auth.entity.User
 import com.mybutler.auth.repository.UserRepository
@@ -9,6 +11,9 @@ import com.mybutler.user.dto.SavePreferencesRequest
 import com.mybutler.user.dto.UpdateProfileRequest
 import com.mybutler.user.dto.UpdateUsernameRequest
 import com.mybutler.common.util.ImageUploadValidator
+import com.mybutler.recipe.entity.Recipe
+import com.mybutler.recipe.entity.RecipeCategory
+import com.mybutler.recipe.repository.RecipeRepository
 import com.mybutler.user.entity.TastePreference
 import com.mybutler.user.entity.UserPreference
 import com.mybutler.user.repository.UserPreferenceRepository
@@ -26,7 +31,11 @@ import org.mockito.kotlin.given
 import org.mockito.kotlin.inOrder
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
+import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Sort
 import org.springframework.mock.web.MockMultipartFile
+import java.time.LocalDateTime
 import java.util.Optional
 
 @ExtendWith(MockitoExtension::class)
@@ -35,6 +44,8 @@ class UserServiceTest {
     @Mock lateinit var userRepository: UserRepository
     @Mock lateinit var userPreferenceRepository: UserPreferenceRepository
     @Mock lateinit var storageService: StorageService
+    @Mock lateinit var arSessionRepository: ArSessionRepository
+    @Mock lateinit var recipeRepository: RecipeRepository
 
     private lateinit var userService: UserService
     private val imageUploadValidator = ImageUploadValidator()
@@ -46,7 +57,7 @@ class UserServiceTest {
 
     @BeforeEach
     fun setUp() {
-        userService = UserService(userRepository, userPreferenceRepository, storageService, imageUploadValidator)
+        userService = UserService(userRepository, userPreferenceRepository, storageService, imageUploadValidator, arSessionRepository, recipeRepository)
     }
 
     @Test
@@ -151,5 +162,41 @@ class UserServiceTest {
             .extracting("errorCode").isEqualTo(ErrorCode.INVALID_FILE_TYPE)
 
         verify(storageService, never()).upload(any(), any())
+    }
+
+    @Test
+    fun `getBrewingHistory - AR 세션 목록과 레시피 이름 반환`() {
+        val pageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt"))
+        val session = ArSession(
+            id = 1L, userId = 1L, recipeId = 10L, postId = 5L,
+            rating = 4, caption = "맛있어요", photoUrl = "posts/photo.jpg",
+            createdAt = LocalDateTime.now(),
+        )
+        val sessionPage = PageImpl(listOf(session), pageable, 1)
+        val recipe = Recipe(id = 10L, name = "Mojito", category = RecipeCategory.CLASSIC, difficulty = 1, isCustom = false)
+
+        given(arSessionRepository.findAllByUserId(1L, pageable)).willReturn(sessionPage)
+        given(recipeRepository.findAllById(listOf(10L))).willReturn(listOf(recipe))
+
+        val result = userService.getBrewingHistory(1L, pageable)
+
+        assertThat(result.content).hasSize(1)
+        assertThat(result.content[0].sessionId).isEqualTo(1L)
+        assertThat(result.content[0].recipeName).isEqualTo("Mojito")
+        assertThat(result.content[0].rating).isEqualTo(4)
+        assertThat(result.totalElements).isEqualTo(1L)
+        assertThat(result.last).isTrue()
+    }
+
+    @Test
+    fun `getBrewingHistory - 세션 없으면 빈 목록 반환`() {
+        val pageable = PageRequest.of(0, 20)
+        given(arSessionRepository.findAllByUserId(99L, pageable)).willReturn(PageImpl(emptyList(), pageable, 0))
+        given(recipeRepository.findAllById(emptyList())).willReturn(emptyList())
+
+        val result = userService.getBrewingHistory(99L, pageable)
+
+        assertThat(result.content).isEmpty()
+        assertThat(result.totalElements).isEqualTo(0L)
     }
 }

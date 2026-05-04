@@ -1,13 +1,16 @@
 package com.mybutler.user.service
 
+import com.mybutler.ar.repository.ArSessionRepository
 import com.mybutler.auth.repository.UserRepository
 import com.mybutler.common.exception.BusinessException
 import com.mybutler.common.exception.ErrorCode
 import com.mybutler.common.storage.StorageService
 import com.mybutler.common.util.ImageUploadValidator
+import com.mybutler.recipe.repository.RecipeRepository
 import com.mybutler.user.dto.*
 import com.mybutler.user.entity.UserPreference
 import com.mybutler.user.repository.UserPreferenceRepository
+import org.springframework.data.domain.Pageable
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
@@ -20,6 +23,8 @@ class UserService(
     private val userPreferenceRepository: UserPreferenceRepository,
     private val storageService: StorageService,
     private val imageUploadValidator: ImageUploadValidator,
+    private val arSessionRepository: ArSessionRepository,
+    private val recipeRepository: RecipeRepository,
 ) {
     fun getMyProfile(userId: Long): UserProfileResponse {
         val user = userRepository.findByIdOrNull(userId)
@@ -89,6 +94,23 @@ class UserService(
 
         user.username = request.username
         return UsernameResponse(username = user.username)
+    }
+
+    fun getBrewingHistory(userId: Long, pageable: Pageable): BrewingHistoryResponse {
+        val page = arSessionRepository.findAllByUserId(userId, pageable)
+        val recipeIds = page.content.map { it.recipeId }.distinct()
+        val recipeNames = recipeRepository.findAllById(recipeIds).associate { it.id to it.name }
+        val entries = page.content.map { session ->
+            BrewingHistoryEntry.from(session, recipeNames[session.recipeId] ?: "")
+        }
+        return BrewingHistoryResponse(
+            content = entries,
+            page = page.number,
+            size = page.size,
+            totalElements = page.totalElements,
+            totalPages = page.totalPages,
+            last = page.isLast,
+        )
     }
 
     private fun checkOnboardingCompletion(userId: Long, user: com.mybutler.auth.entity.User) {

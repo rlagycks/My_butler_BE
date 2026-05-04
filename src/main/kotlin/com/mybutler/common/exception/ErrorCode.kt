@@ -70,6 +70,13 @@ enum class ErrorCode(
     NOTIFICATION_ACCESS_DENIED(HttpStatus.FORBIDDEN, "NOTI_002", "본인의 알림만 처리할 수 있습니다."),
     NOTIFICATION_ALREADY_READ(HttpStatus.CONFLICT, "NOTI_003", "이미 읽음 처리된 알림입니다."),
 
+    // AR
+    AR_RECIPE_NOT_FOUND(HttpStatus.NOT_FOUND, "AR_001", "해당 레시피를 찾을 수 없습니다."),
+    AR_PHOTO_REQUIRED(HttpStatus.BAD_REQUEST, "AR_002", "사진은 필수입니다."),
+    AR_RATING_REQUIRED(HttpStatus.BAD_REQUEST, "AR_003", "별점은 필수입니다. (1~5)"),
+    AR_RATING_INVALID(HttpStatus.BAD_REQUEST, "AR_004", "별점은 1~5 사이의 값이어야 합니다."),
+    AR_CAPTION_TOO_LONG(HttpStatus.BAD_REQUEST, "AR_005", "캡션은 최대 500자까지 입력할 수 있습니다."),
+
     // Storage
     FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "STORAGE_001", "파일 업로드에 실패했습니다."),
     INVALID_FILE_TYPE(HttpStatus.BAD_REQUEST, "STORAGE_002", "지원하지 않는 파일 형식입니다."),

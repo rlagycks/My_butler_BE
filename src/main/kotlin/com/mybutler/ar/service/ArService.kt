@@ -97,13 +97,18 @@ class ArService(
                 )
             } ?: throw IllegalStateException("Transaction completed without creating a session")
         } catch (ex: Exception) {
-            storageService.delete(photoUrl)
+            try {
+                storageService.delete(photoUrl)
+            } catch (deleteEx: Exception) {
+                ex.addSuppressed(deleteEx)
+            }
             throw ex
         }
     }
 
     private fun upsertRating(recipeId: Long, userId: Long, score: Int) {
-        val recipe = recipeRepository.findByIdForUpdate(recipeId) ?: return
+        val recipe = recipeRepository.findByIdForUpdate(recipeId)
+            ?: throw BusinessException(ErrorCode.AR_RECIPE_NOT_FOUND)
 
         val existing = recipeRatingRepository.findByRecipeIdAndUserId(recipeId, userId)
         if (existing != null) {

@@ -31,13 +31,23 @@ data class ArIngredientDto(
     val unit: String,
 ) {
     companion object {
-        fun from(ingredient: com.mybutler.recipe.entity.RecipeIngredient): ArIngredientDto =
-            ArIngredientDto(
+        fun from(ingredient: com.mybutler.recipe.entity.RecipeIngredient): ArIngredientDto {
+            val unit = ingredient.unit?.lowercase() ?: "ml"
+            val rawAmount = ingredient.amount?.toDoubleOrNull() ?: 0.0
+            val amountMl = when (unit) {
+                "oz" -> rawAmount * 29.5735
+                "cl" -> rawAmount * 10.0
+                "tsp" -> rawAmount * 5.0
+                "tbsp" -> rawAmount * 15.0
+                else -> rawAmount
+            }
+            return ArIngredientDto(
                 order = ingredient.displayOrder,
                 name = ingredient.name,
-                amountMl = ingredient.amount?.toDoubleOrNull() ?: 0.0,
-                unit = ingredient.unit ?: "ml",
+                amountMl = amountMl,
+                unit = unit,
             )
+        }
     }
 }
 

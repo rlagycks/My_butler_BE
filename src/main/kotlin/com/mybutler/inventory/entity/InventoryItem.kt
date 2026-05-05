@@ -62,8 +62,8 @@ class InventoryItem(
         val elapsedDays = ChronoUnit.DAYS.between(openedDate, now.toLocalDate())
 
         return when {
-            elapsedDays <= 7 -> ExpiryStatus.DANGER
-            elapsedDays <= 14 -> ExpiryStatus.WARNING
+            elapsedDays >= 14 -> ExpiryStatus.DANGER
+            elapsedDays >= 7 -> ExpiryStatus.WARNING
             else -> ExpiryStatus.NORMAL
         }
     }

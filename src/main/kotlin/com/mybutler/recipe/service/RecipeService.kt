@@ -21,6 +21,7 @@ import com.mybutler.recipe.entity.RecipeStep
 import com.mybutler.recipe.repository.RecipeRepository
 import com.mybutler.user.repository.UserPreferenceRepository
 import jakarta.persistence.EntityManager
+import org.slf4j.LoggerFactory
 import org.springframework.data.domain.Pageable
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
@@ -38,6 +39,8 @@ class RecipeService(
     private val storageService: StorageService,
     private val imageUploadValidator: ImageUploadValidator,
 ) {
+    private val log = LoggerFactory.getLogger(javaClass)
+
     fun getHome(userId: Long): RecipeHomeResponse {
         val inventoryItems = inventoryItemRepository.findAllByUserId(userId)
         val allBaseRecipes = baseRecipeLoader.loadAll()
@@ -209,8 +212,13 @@ class RecipeService(
         val oldThumbnailUrl = recipe.thumbnailUrl
         val newThumbnailUrl = storageService.upload(file, "recipes/thumbnails")
         recipe.thumbnailUrl = newThumbnailUrl
-        oldThumbnailUrl?.takeIf { it != newThumbnailUrl }?.let(storageService::delete)
+        oldThumbnailUrl?.takeIf { it != newThumbnailUrl }?.let(::deleteThumbnailQuietly)
         return RecipeDetailResponse.from(recipe)
+    }
+
+    private fun deleteThumbnailQuietly(thumbnailUrl: String) {
+        runCatching { storageService.delete(thumbnailUrl) }
+            .onFailure { ex -> log.warn("Failed to delete recipe thumbnail: {}", thumbnailUrl, ex) }
     }
 
     private fun findOwnedCustom(

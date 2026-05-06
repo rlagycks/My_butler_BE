@@ -4,6 +4,7 @@ import com.mybutler.common.exception.BusinessException
 import com.mybutler.common.exception.ErrorCode
 import com.mybutler.common.storage.StorageService
 import com.mybutler.common.util.ImageUploadValidator
+import com.mybutler.common.util.deleteFromStorageQuietly
 import com.mybutler.inventory.repository.InventoryItemRepository
 import com.mybutler.recipe.dto.CreateRecipeRequest
 import com.mybutler.recipe.dto.RecipeDetailResponse
@@ -212,13 +213,10 @@ class RecipeService(
         val oldThumbnailUrl = recipe.thumbnailUrl
         val newThumbnailUrl = storageService.upload(file, "recipes/thumbnails")
         recipe.thumbnailUrl = newThumbnailUrl
-        oldThumbnailUrl?.takeIf { it != newThumbnailUrl }?.let(::deleteThumbnailQuietly)
+        oldThumbnailUrl?.takeIf { it != newThumbnailUrl }?.let {
+            deleteFromStorageQuietly(storageService, it, log, "recipe thumbnail")
+        }
         return RecipeDetailResponse.from(recipe)
-    }
-
-    private fun deleteThumbnailQuietly(thumbnailUrl: String) {
-        runCatching { storageService.delete(thumbnailUrl) }
-            .onFailure { ex -> log.warn("Failed to delete recipe thumbnail: {}", thumbnailUrl, ex) }
     }
 
     private fun findOwnedCustom(

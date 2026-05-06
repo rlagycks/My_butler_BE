@@ -6,6 +6,7 @@ import com.mybutler.common.exception.BusinessException
 import com.mybutler.common.exception.ErrorCode
 import com.mybutler.common.storage.StorageService
 import com.mybutler.common.util.ImageUploadValidator
+import com.mybutler.common.util.deleteFromStorageQuietly
 import com.mybutler.recipe.repository.RecipeRepository
 import com.mybutler.user.dto.*
 import com.mybutler.user.entity.UserPreference
@@ -57,7 +58,9 @@ class UserService(
         val oldImageUrl = user.profileImageUrl
         val newImageUrl = storageService.upload(file, "profiles")
         user.profileImageUrl = newImageUrl
-        oldImageUrl?.takeIf { it != newImageUrl }?.let(::deleteProfileImageQuietly)
+        oldImageUrl?.takeIf { it != newImageUrl }?.let {
+            deleteFromStorageQuietly(storageService, it, log, "profile image")
+        }
         return UserProfileResponse.from(user)
     }
 
@@ -124,10 +127,5 @@ class UserService(
         if (user.ageGroup != null && userPreferenceRepository.existsByUserId(userId)) {
             user.onboardingCompleted = true
         }
-    }
-
-    private fun deleteProfileImageQuietly(imageUrl: String) {
-        runCatching { storageService.delete(imageUrl) }
-            .onFailure { ex -> log.warn("Failed to delete profile image: {}", imageUrl, ex) }
     }
 }

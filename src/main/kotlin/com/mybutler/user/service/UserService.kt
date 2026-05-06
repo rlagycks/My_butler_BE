@@ -6,10 +6,12 @@ import com.mybutler.common.exception.BusinessException
 import com.mybutler.common.exception.ErrorCode
 import com.mybutler.common.storage.StorageService
 import com.mybutler.common.util.ImageUploadValidator
+import com.mybutler.common.util.deleteFromStorageQuietly
 import com.mybutler.recipe.repository.RecipeRepository
 import com.mybutler.user.dto.*
 import com.mybutler.user.entity.UserPreference
 import com.mybutler.user.repository.UserPreferenceRepository
+import org.slf4j.LoggerFactory
 import org.springframework.data.domain.Pageable
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
@@ -26,6 +28,8 @@ class UserService(
     private val arSessionRepository: ArSessionRepository,
     private val recipeRepository: RecipeRepository,
 ) {
+    private val log = LoggerFactory.getLogger(javaClass)
+
     fun getMyProfile(userId: Long): UserProfileResponse {
         val user = userRepository.findByIdOrNull(userId)
             ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
@@ -54,7 +58,9 @@ class UserService(
         val oldImageUrl = user.profileImageUrl
         val newImageUrl = storageService.upload(file, "profiles")
         user.profileImageUrl = newImageUrl
-        oldImageUrl?.takeIf { it != newImageUrl }?.let(storageService::delete)
+        oldImageUrl?.takeIf { it != newImageUrl }?.let {
+            deleteFromStorageQuietly(storageService, it, log, "profile image")
+        }
         return UserProfileResponse.from(user)
     }
 
@@ -88,7 +94,7 @@ class UserService(
         val user = userRepository.findByIdOrNull(userId)
             ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
 
-        if (userRepository.existsByUsername(request.username)) {
+        if (request.username != user.username && userRepository.existsByUsername(request.username)) {
             throw BusinessException(ErrorCode.DUPLICATE_USERNAME)
         }
 

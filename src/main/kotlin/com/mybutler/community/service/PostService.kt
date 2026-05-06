@@ -5,6 +5,7 @@ import com.mybutler.common.exception.BusinessException
 import com.mybutler.common.exception.ErrorCode
 import com.mybutler.common.storage.StorageService
 import com.mybutler.common.util.ImageUploadValidator
+import com.mybutler.common.util.deleteFromStorageQuietly
 import com.mybutler.community.dto.AuthorDto
 import com.mybutler.community.dto.CommentPageResponse
 import com.mybutler.community.dto.CreatePostRequest
@@ -186,7 +187,7 @@ class PostService(
                 )
             } ?: throw IllegalStateException("Transaction completed without creating a post")
         } catch (ex: Exception) {
-            uploadedImageUrls.forEach(::deleteImageQuietly)
+            uploadedImageUrls.forEach { deleteFromStorageQuietly(storageService, it, log, "community image") }
             throw ex
         }
     }
@@ -205,7 +206,7 @@ class PostService(
             urls
         } ?: throw IllegalStateException("Transaction completed without deleting a post")
 
-        imageUrls.forEach(::deleteImageQuietly)
+        imageUrls.forEach { deleteFromStorageQuietly(storageService, it, log, "community image") }
     }
 
     private fun buildFeedPageResponse(
@@ -256,10 +257,5 @@ class PostService(
         }
 
         return FeedPageResponse(content, pageNum, pageSize, totalElements, totalPages, last)
-    }
-
-    private fun deleteImageQuietly(imageUrl: String) {
-        runCatching { storageService.delete(imageUrl) }
-            .onFailure { ex -> log.warn("Failed to delete community image: {}", imageUrl, ex) }
     }
 }

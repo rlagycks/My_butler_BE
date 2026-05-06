@@ -4,6 +4,7 @@ import com.mybutler.common.exception.BusinessException
 import com.mybutler.common.exception.ErrorCode
 import com.mybutler.common.storage.StorageService
 import com.mybutler.common.util.ImageUploadValidator
+import com.mybutler.common.util.deleteFromStorageQuietly
 import com.mybutler.inventory.repository.InventoryItemRepository
 import com.mybutler.recipe.dto.CreateRecipeRequest
 import com.mybutler.recipe.dto.RecipeDetailResponse
@@ -21,6 +22,7 @@ import com.mybutler.recipe.entity.RecipeStep
 import com.mybutler.recipe.repository.RecipeRepository
 import com.mybutler.user.repository.UserPreferenceRepository
 import jakarta.persistence.EntityManager
+import org.slf4j.LoggerFactory
 import org.springframework.data.domain.Pageable
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
@@ -38,6 +40,8 @@ class RecipeService(
     private val storageService: StorageService,
     private val imageUploadValidator: ImageUploadValidator,
 ) {
+    private val log = LoggerFactory.getLogger(javaClass)
+
     fun getHome(userId: Long): RecipeHomeResponse {
         val inventoryItems = inventoryItemRepository.findAllByUserId(userId)
         val allBaseRecipes = baseRecipeLoader.loadAll()
@@ -209,7 +213,9 @@ class RecipeService(
         val oldThumbnailUrl = recipe.thumbnailUrl
         val newThumbnailUrl = storageService.upload(file, "recipes/thumbnails")
         recipe.thumbnailUrl = newThumbnailUrl
-        oldThumbnailUrl?.takeIf { it != newThumbnailUrl }?.let(storageService::delete)
+        oldThumbnailUrl?.takeIf { it != newThumbnailUrl }?.let {
+            deleteFromStorageQuietly(storageService, it, log, "recipe thumbnail")
+        }
         return RecipeDetailResponse.from(recipe)
     }
 

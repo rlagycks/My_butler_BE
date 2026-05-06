@@ -139,7 +139,7 @@ class InventoryServiceTest {
         assertThat(result.id).isEqualTo(itemId)
         assertThat(result.name).isEqualTo(item.name)
         assertThat(result.category).isEqualTo(Category.RUM)
-        assertThat(result.expiryStatus).isEqualTo(ExpiryStatus.NORMAL)
+        assertThat(result.expiryStatus).isEqualTo(ExpiryStatus.DANGER)
     }
 
     @Test
@@ -234,7 +234,7 @@ class InventoryServiceTest {
         assertThat(item.openedAt).isAfterOrEqualTo(before)
         assertThat(result.isOpened).isTrue()
         assertThat(result.openedAt).isEqualTo(item.openedAt)
-        assertThat(result.expiryStatus).isEqualTo(ExpiryStatus.DANGER)
+        assertThat(result.expiryStatus).isEqualTo(ExpiryStatus.NORMAL)
     }
 
     @Test
@@ -292,7 +292,7 @@ class InventoryServiceTest {
             userId = userId,
             category = Category.WHISKEY,
             isOpened = true,
-            openedAt = now.minusDays(3),
+            openedAt = now.minusDays(16),
         )
         val warningItem = inventoryItem(
             id = 61L,
@@ -306,7 +306,7 @@ class InventoryServiceTest {
             userId = userId,
             category = Category.GIN,
             isOpened = true,
-            openedAt = now.minusDays(20),
+            openedAt = now.minusDays(3),
         )
         val unopenedItem = inventoryItem(
             id = 63L,

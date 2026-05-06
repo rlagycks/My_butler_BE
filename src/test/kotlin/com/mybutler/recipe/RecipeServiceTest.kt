@@ -34,6 +34,7 @@ import org.mockito.kotlin.given
 import org.mockito.kotlin.inOrder
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.willThrow
 import org.springframework.mock.web.MockMultipartFile
 import java.util.Optional
 
@@ -254,6 +255,23 @@ class RecipeServiceTest {
             verify(storageService).upload(file, "recipes/thumbnails")
             verify(storageService).delete("recipes/thumbnails/old.jpg")
         }
+    }
+
+    @Test
+    fun `uploadThumbnail - 기존 썸네일 삭제 실패여도 새 URL로 응답한다`() {
+        val userId = 1L
+        val recipeId = 1L
+        val customRecipe = recipe(id = recipeId, isCustom = true, authorId = userId, thumbnailUrl = "recipes/thumbnails/old.jpg")
+        val file = MockMultipartFile("file", "new.jpg", "image/jpeg", "data".toByteArray())
+
+        given(recipeRepository.findById(recipeId)).willReturn(Optional.of(customRecipe))
+        given(storageService.upload(any(), any())).willReturn("recipes/thumbnails/new-uuid.jpg")
+        given(storageService.delete("recipes/thumbnails/old.jpg")).willThrow(RuntimeException("delete failed"))
+
+        val result = recipeService.uploadThumbnail(userId, recipeId, file)
+
+        assertThat(result.thumbnailUrl).isEqualTo("recipes/thumbnails/new-uuid.jpg")
+        assertThat(customRecipe.thumbnailUrl).isEqualTo("recipes/thumbnails/new-uuid.jpg")
     }
 
     @Test

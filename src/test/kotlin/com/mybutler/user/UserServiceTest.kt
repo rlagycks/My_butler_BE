@@ -31,6 +31,7 @@ import org.mockito.kotlin.given
 import org.mockito.kotlin.inOrder
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.willThrow
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
@@ -112,6 +113,16 @@ class UserServiceTest {
     }
 
     @Test
+    fun `updateUsername - 현재 아이디와 같으면 중복 검사 없이 유지`() {
+        given(userRepository.findById(1L)).willReturn(Optional.of(testUser))
+
+        val result = userService.updateUsername(1L, UpdateUsernameRequest("testuser"))
+
+        assertThat(result.username).isEqualTo("testuser")
+        verify(userRepository, never()).existsByUsername("testuser")
+    }
+
+    @Test
     fun `uploadProfileImage - 기존 이미지 없을 때 업로드 후 URL 반환`() {
         val file = MockMultipartFile("file", "photo.jpg", "image/jpeg", "data".toByteArray())
         given(userRepository.findById(1L)).willReturn(Optional.of(testUser))
@@ -140,6 +151,24 @@ class UserServiceTest {
             verify(storageService).upload(file, "profiles")
             verify(storageService).delete("profiles/old.jpg")
         }
+    }
+
+    @Test
+    fun `uploadProfileImage - 기존 이미지 삭제 실패여도 새 URL로 응답한다`() {
+        val userWithImage = User(
+            id = 1L, email = "test@email.com", username = "testuser",
+            password = "encoded", termsAgreed = true, privacyAgreed = true,
+            profileImageUrl = "profiles/old.jpg",
+        )
+        val file = MockMultipartFile("file", "new.jpg", "image/jpeg", "data".toByteArray())
+        given(userRepository.findById(1L)).willReturn(Optional.of(userWithImage))
+        given(storageService.upload(any(), any())).willReturn("profiles/new-uuid.jpg")
+        given(storageService.delete("profiles/old.jpg")).willThrow(RuntimeException("delete failed"))
+
+        val result = userService.uploadProfileImage(1L, file)
+
+        assertThat(result.profileImageUrl).isEqualTo("profiles/new-uuid.jpg")
+        assertThat(userWithImage.profileImageUrl).isEqualTo("profiles/new-uuid.jpg")
     }
 
     @Test

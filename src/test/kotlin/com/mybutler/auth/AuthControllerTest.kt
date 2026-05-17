@@ -32,7 +32,6 @@ class AuthControllerTest {
     fun `register - refresh token을 response body에 포함한다`() {
         val request = RegisterRequest(
             email = "user@example.com",
-            username = "tester",
             password = "Passw0rd!",
             termsAgreed = true,
             privacyAgreed = true,

@@ -46,14 +46,13 @@ class AuthService(
         if (userRepository.existsByEmail(request.email)) {
             throw BusinessException(ErrorCode.DUPLICATE_EMAIL)
         }
-        if (userRepository.existsByUsername(request.username)) {
-            throw BusinessException(ErrorCode.DUPLICATE_USERNAME)
-        }
+
+        val generatedUsername = "user_" + UUID.randomUUID().toString().replace("-", "").substring(0, 8)
 
         val user = userRepository.save(
             User(
                 email = request.email,
-                username = request.username,
+                username = generatedUsername,
                 password = passwordEncoder.encode(request.password),
                 termsAgreed = request.termsAgreed,
                 privacyAgreed = request.privacyAgreed,

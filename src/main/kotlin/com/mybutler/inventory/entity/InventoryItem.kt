@@ -10,6 +10,7 @@ import jakarta.persistence.Id
 import jakarta.persistence.Table
 import org.hibernate.annotations.CreationTimestamp
 import org.hibernate.annotations.UpdateTimestamp
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 
@@ -48,6 +49,18 @@ class InventoryItem(
 
     @Column(name = "opened_at")
     var openedAt: LocalDateTime? = null,
+
+    @Column(name = "tasting_notes", columnDefinition = "TEXT")
+    var tastingNotes: String? = null,
+
+    @Column(name = "purchased_at")
+    var purchasedAt: LocalDate? = null,
+
+    @Column(name = "purchase_place", length = 200)
+    var purchasePlace: String? = null,
+
+    @Column(name = "origin", length = 100)
+    var origin: String? = null,
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

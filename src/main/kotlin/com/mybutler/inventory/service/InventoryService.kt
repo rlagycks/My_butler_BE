@@ -71,6 +71,10 @@ class InventoryService(
                 purchasePrice = request.purchasePrice,
                 isOpened = request.isOpened,
                 openedAt = if (request.isOpened) LocalDateTime.now() else null,
+                tastingNotes = request.tastingNotes,
+                purchasedAt = request.purchasedAt,
+                purchasePlace = request.purchasePlace,
+                origin = request.origin,
             )
         )
 
@@ -94,6 +98,10 @@ class InventoryService(
         item.capacityMl = request.capacityMl
         item.levelStatus = request.levelStatus
         item.purchasePrice = request.purchasePrice
+        item.tastingNotes = request.tastingNotes
+        item.purchasedAt = request.purchasedAt
+        item.purchasePlace = request.purchasePlace
+        item.origin = request.origin
 
         when {
             !item.isOpened && request.isOpened -> {

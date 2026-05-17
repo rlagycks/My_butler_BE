@@ -38,7 +38,7 @@ class UserPreference(
     var updatedAt: LocalDateTime = LocalDateTime.now(),
 )
 
-enum class TastePreference { SWEET, SOUR, BITTER, STRONG, LIGHT }
+enum class TastePreference { SWEET, SOUR, BITTER, STRONG, LIGHT, SMOKY, SPICY, FRUITY, CITRUS, DRY }
 
 enum class PreferredAbv { LOW, MEDIUM, HIGH }
 

@@ -35,6 +35,7 @@ import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.mock.web.MockMultipartFile
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.Optional
 
@@ -99,6 +100,21 @@ class UserServiceTest {
         userService.savePreferences(1L, request)
 
         assertThat(user.onboardingCompleted).isTrue()
+    }
+
+    @Test
+    fun `updateProfile - birthDate 저장`() {
+        given(userRepository.findById(1L)).willReturn(Optional.of(testUser))
+
+        val request = UpdateProfileRequest(
+            gender = null,
+            ageGroup = null,
+            drinkingFrequency = null,
+            birthDate = LocalDate.of(1995, 3, 20),
+        )
+        val result = userService.updateProfile(1L, request)
+
+        assertThat(result.birthDate).isEqualTo(LocalDate.of(1995, 3, 20))
     }
 
     @Test

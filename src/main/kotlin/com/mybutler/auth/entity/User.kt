@@ -3,6 +3,7 @@ package com.mybutler.auth.entity
 import jakarta.persistence.*
 import org.hibernate.annotations.CreationTimestamp
 import org.hibernate.annotations.UpdateTimestamp
+import java.time.LocalDate
 import java.time.LocalDateTime
 
 @Entity
@@ -32,6 +33,9 @@ class User(
     @Enumerated(EnumType.STRING)
     @Column
     var drinkingFrequency: DrinkingFrequency? = null,
+
+    @Column(name = "birth_date")
+    var birthDate: LocalDate? = null,
 
     @Column(name = "profile_image_url", length = 512)
     var profileImageUrl: String? = null,

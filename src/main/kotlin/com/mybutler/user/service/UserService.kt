@@ -40,6 +40,7 @@ class UserService(
         user.gender = request.gender
         user.ageGroup = request.ageGroup
         user.drinkingFrequency = request.drinkingFrequency
+        user.birthDate = request.birthDate
 
         checkOnboardingCompletion(user.id, user)
 

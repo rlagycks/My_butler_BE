@@ -122,4 +122,9 @@ enum class TasteTag {
     BITTER,
     STRONG,
     LIGHT,
+    SMOKY,
+    SPICY,
+    FRUITY,
+    CITRUS,
+    DRY,
 }

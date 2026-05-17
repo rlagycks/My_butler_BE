@@ -60,17 +60,15 @@ class AuthServiceTest {
     fun `register - 정상 회원가입 시 토큰 반환`() {
         val request = RegisterRequest(
             email = "test@email.com",
-            username = "testuser",
             password = "Test1234!",
             termsAgreed = true,
             privacyAgreed = true,
             marketingAgreed = false,
         )
-        val savedUser = User(id = 1L, email = request.email, username = request.username,
+        val savedUser = User(id = 1L, email = request.email, username = "user_abcd1234",
             password = "encoded", termsAgreed = true, privacyAgreed = true)
 
         given(userRepository.existsByEmail(request.email)).willReturn(false)
-        given(userRepository.existsByUsername(request.username)).willReturn(false)
         given(userRepository.save(any<User>())).willReturn(savedUser)
         given(jwtTokenProvider.createAccessToken(any(), any(), any())).willReturn("access-token")
         given(jwtTokenProvider.createRefreshToken()).willReturn("refresh-token")
@@ -86,8 +84,34 @@ class AuthServiceTest {
     }
 
     @Test
+    fun `register - 자동 생성된 username은 user_ 접두사와 8자 랜덤 문자열`() {
+        val request = RegisterRequest(
+            email = "test@email.com",
+            password = "Test1234!",
+            termsAgreed = true,
+            privacyAgreed = true,
+            marketingAgreed = false,
+        )
+        val userCaptor = argumentCaptor<User>()
+
+        given(userRepository.existsByEmail(request.email)).willReturn(false)
+        given(userRepository.save(userCaptor.capture())).willAnswer { userCaptor.firstValue }
+        given(jwtTokenProvider.createAccessToken(any(), any(), any())).willReturn("access-token")
+        given(jwtTokenProvider.createRefreshToken()).willReturn("refresh-token")
+        given(refreshTokenRepository.save(any<RefreshToken>())).willReturn(
+            RefreshToken(userId = 0L, token = "refresh-token", expiresAt = LocalDateTime.now().plusDays(7))
+        )
+
+        authService.register(request)
+
+        val capturedUsername = userCaptor.firstValue.username
+        assertThat(capturedUsername).startsWith("user_")
+        assertThat(capturedUsername).hasSize(13)
+    }
+
+    @Test
     fun `register - 이메일 중복 시 DUPLICATE_EMAIL 예외`() {
-        val request = RegisterRequest("dup@email.com", "user", "Test1234!", true, true, false)
+        val request = RegisterRequest("dup@email.com", "Test1234!", true, true, false)
         given(userRepository.existsByEmail(request.email)).willReturn(true)
 
         assertThatThrownBy { authService.register(request) }
@@ -96,19 +120,8 @@ class AuthServiceTest {
     }
 
     @Test
-    fun `register - 아이디 중복 시 DUPLICATE_USERNAME 예외`() {
-        val request = RegisterRequest("new@email.com", "dupuser", "Test1234!", true, true, false)
-        given(userRepository.existsByEmail(request.email)).willReturn(false)
-        given(userRepository.existsByUsername(request.username)).willReturn(true)
-
-        assertThatThrownBy { authService.register(request) }
-            .isInstanceOf(BusinessException::class.java)
-            .extracting("errorCode").isEqualTo(ErrorCode.DUPLICATE_USERNAME)
-    }
-
-    @Test
     fun `register - 필수 약관 미동의 시 TERMS_NOT_AGREED 예외`() {
-        val request = RegisterRequest("new@email.com", "newuser", "Test1234!", false, true, false)
+        val request = RegisterRequest("new@email.com", "Test1234!", false, true, false)
 
         assertThatThrownBy { authService.register(request) }
             .isInstanceOf(BusinessException::class.java)

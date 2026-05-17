@@ -6,6 +6,7 @@ import com.mybutler.inventory.entity.InventoryItem
 import com.mybutler.inventory.entity.LevelStatus
 import org.springframework.data.domain.Page
 import java.math.BigDecimal
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 
@@ -54,6 +55,10 @@ data class InventoryItemDetailResponse(
     val openedAt: LocalDateTime?,
     val expiryStatus: ExpiryStatus,
     val dDay: Long?,
+    val tastingNotes: String?,
+    val purchasedAt: LocalDate?,
+    val purchasePlace: String?,
+    val origin: String?,
     val createdAt: LocalDateTime,
     val updatedAt: LocalDateTime,
 ) {
@@ -72,6 +77,10 @@ data class InventoryItemDetailResponse(
                 openedAt = item.openedAt,
                 expiryStatus = item.getExpiryStatus(now),
                 dDay = item.openedAt?.let { -ChronoUnit.DAYS.between(it.toLocalDate(), now.toLocalDate()) },
+                tastingNotes = item.tastingNotes,
+                purchasedAt = item.purchasedAt,
+                purchasePlace = item.purchasePlace,
+                origin = item.origin,
                 createdAt = item.createdAt,
                 updatedAt = item.updatedAt,
             )

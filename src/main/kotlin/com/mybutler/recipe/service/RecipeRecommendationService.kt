@@ -53,5 +53,10 @@ object RecipeRecommendationService {
         TastePreference.BITTER -> TasteTag.BITTER
         TastePreference.STRONG -> TasteTag.STRONG
         TastePreference.LIGHT -> TasteTag.LIGHT
+        TastePreference.SMOKY -> TasteTag.SMOKY
+        TastePreference.SPICY -> TasteTag.SPICY
+        TastePreference.FRUITY -> TasteTag.FRUITY
+        TastePreference.CITRUS -> TasteTag.CITRUS
+        TastePreference.DRY -> TasteTag.DRY
     }
 }

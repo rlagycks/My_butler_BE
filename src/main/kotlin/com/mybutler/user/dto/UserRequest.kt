@@ -10,11 +10,13 @@ import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotEmpty
 import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
+import java.time.LocalDate
 
 data class UpdateProfileRequest(
     val gender: Gender?,
     val ageGroup: AgeGroup?,
     val drinkingFrequency: DrinkingFrequency?,
+    val birthDate: LocalDate?,
 )
 
 data class SavePreferencesRequest(

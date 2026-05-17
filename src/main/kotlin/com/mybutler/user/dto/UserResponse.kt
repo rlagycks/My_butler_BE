@@ -8,6 +8,7 @@ import com.mybutler.user.entity.ExperienceLevel
 import com.mybutler.user.entity.PreferredAbv
 import com.mybutler.user.entity.TastePreference
 import com.mybutler.user.entity.UserPreference
+import java.time.LocalDate
 
 data class UserProfileResponse(
     val id: Long,
@@ -17,6 +18,7 @@ data class UserProfileResponse(
     val gender: Gender?,
     val ageGroup: AgeGroup?,
     val drinkingFrequency: DrinkingFrequency?,
+    val birthDate: LocalDate?,
     val onboardingCompleted: Boolean,
 ) {
     companion object {
@@ -28,6 +30,7 @@ data class UserProfileResponse(
             gender = user.gender,
             ageGroup = user.ageGroup,
             drinkingFrequency = user.drinkingFrequency,
+            birthDate = user.birthDate,
             onboardingCompleted = user.onboardingCompleted,
         )
     }

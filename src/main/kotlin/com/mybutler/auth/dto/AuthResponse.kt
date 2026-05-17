@@ -2,6 +2,7 @@ package com.mybutler.auth.dto
 
 data class TokenResponse(
     val accessToken: String,
+    val refreshToken: String,
     val onboardingCompleted: Boolean,
 )
 
@@ -15,5 +16,9 @@ data class AuthTokens(
     val refreshToken: String,
     val onboardingCompleted: Boolean,
 ) {
-    fun toResponse() = TokenResponse(accessToken = accessToken, onboardingCompleted = onboardingCompleted)
+    fun toResponse() = TokenResponse(
+        accessToken = accessToken,
+        refreshToken = refreshToken,
+        onboardingCompleted = onboardingCompleted,
+    )
 }

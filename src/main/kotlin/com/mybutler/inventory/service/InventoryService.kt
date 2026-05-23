@@ -24,6 +24,7 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.multipart.MultipartFile
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 
@@ -32,6 +33,8 @@ import java.time.temporal.ChronoUnit
 class InventoryService(
     private val inventoryItemRepository: InventoryItemRepository,
     private val baseRecipeLoader: BaseRecipeLoader,
+    private val ocrClient: com.mybutler.inventory.ocr.OcrClient,
+    private val labelParser: com.mybutler.inventory.ocr.LabelParser,
 ) {
     fun getHome(userId: Long, pageable: Pageable): InventoryHomeResponse {
         val allItems = inventoryItemRepository.findAllByUserId(userId)
@@ -148,8 +151,36 @@ class InventoryService(
         return InventoryItemDetailResponse.from(item)
     }
 
-    fun scan(userId: Long): InventoryScanResponse {
-        return InventoryScanResponse(isMatchFound = false)
+    /**
+     * 라벨 OCR 스캔.
+     * - ocrText가 직접 주어지면(개발/테스트) OCR을 건너뛰고 파서로 직행.
+     * - 아니면 image 바이트를 OcrClient로 텍스트 추출 후 파싱.
+     * 결과는 폼 prefill용이며 모든 필드 nullable.
+     */
+    fun scan(image: MultipartFile?, ocrText: String?): InventoryScanResponse {
+        val rawText = when {
+            !ocrText.isNullOrBlank() -> ocrText
+            image != null && !image.isEmpty -> {
+                // image.bytes는 IOException 가능 — OCR 처리 실패로 래핑하여 적절한 422 응답.
+                val bytes = try {
+                    image.bytes
+                } catch (e: java.io.IOException) {
+                    throw BusinessException(ErrorCode.INVENTORY_OCR_FAILED)
+                }
+                ocrClient.extractText(bytes)
+            }
+            else -> throw BusinessException(ErrorCode.INVALID_INPUT)
+        }
+
+        val parsed = labelParser.parse(rawText)
+        return InventoryScanResponse(
+            name = parsed.name,
+            category = parsed.category,
+            abv = parsed.abv,
+            capacityMl = parsed.capacityMl,
+            confidence = parsed.confidence,
+            rawText = rawText,
+        )
     }
 
     fun getInsights(userId: Long): InventoryInsightsResponse {

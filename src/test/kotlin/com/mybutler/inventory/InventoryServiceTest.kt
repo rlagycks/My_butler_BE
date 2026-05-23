@@ -13,6 +13,7 @@ import com.mybutler.inventory.repository.InventoryItemRepository
 import com.mybutler.inventory.service.InventoryService
 import com.mybutler.recipe.service.BaseRecipeLoader
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -35,12 +36,21 @@ class InventoryServiceTest {
 
     @Mock lateinit var inventoryItemRepository: InventoryItemRepository
     @Mock lateinit var baseRecipeLoader: BaseRecipeLoader
+    @Mock lateinit var ocrClient: com.mybutler.inventory.ocr.OcrClient
+
+    // 파서는 순수 로직이라 실제 인스턴스 사용
+    private val labelParser = com.mybutler.inventory.ocr.LabelParser()
 
     private lateinit var inventoryService: InventoryService
 
     @BeforeEach
     fun setUp() {
-        inventoryService = InventoryService(inventoryItemRepository, baseRecipeLoader)
+        inventoryService = InventoryService(
+            inventoryItemRepository,
+            baseRecipeLoader,
+            ocrClient,
+            labelParser,
+        )
     }
 
     @Test
@@ -277,10 +287,23 @@ class InventoryServiceTest {
     }
 
     @Test
-    fun `scan - 현재 항상 미매칭 반환`() {
-        val result = inventoryService.scan(userId = 1L)
+    fun `scan - ocrText 직접 전달 시 파싱 결과 반환`() {
+        val result = inventoryService.scan(
+            image = null,
+            ocrText = "LAGAVULIN AGED 16 YEARS\nSINGLE MALT SCOTCH WHISKY\n43% vol  700ml",
+        )
 
-        assertThat(result.isMatchFound).isFalse()
+        assertThat(result.category).isEqualTo(com.mybutler.inventory.entity.Category.WHISKEY)
+        assertThat(result.abv).isEqualByComparingTo(java.math.BigDecimal("43"))
+        assertThat(result.capacityMl).isEqualTo(700)
+        assertThat(result.confidence).isGreaterThan(0.0)
+        assertThat(result.rawText).contains("LAGAVULIN")
+    }
+
+    @Test
+    fun `scan - image도 ocrText도 없으면 INVALID_INPUT`() {
+        assertThatThrownBy { inventoryService.scan(image = null, ocrText = null) }
+            .isInstanceOf(com.mybutler.common.exception.BusinessException::class.java)
     }
 
     @Test

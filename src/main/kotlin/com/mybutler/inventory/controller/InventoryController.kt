@@ -8,13 +8,11 @@ import com.mybutler.inventory.dto.InventoryInsightsResponse
 import com.mybutler.inventory.dto.InventoryItemDetailResponse
 import com.mybutler.inventory.dto.InventoryListResponse
 import com.mybutler.inventory.dto.InventoryScanResponse
-import com.mybutler.inventory.dto.ScanInventoryRequest
 import com.mybutler.inventory.dto.UpdateInventoryItemRequest
 import com.mybutler.inventory.dto.UpdateInventoryLevelRequest
 import com.mybutler.inventory.entity.Category
 import com.mybutler.inventory.service.InventoryService
 import io.swagger.v3.oas.annotations.Operation
-import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
@@ -23,6 +21,7 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
 import org.springframework.data.web.PageableDefault
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
@@ -33,8 +32,10 @@ import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.RequestPart
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.multipart.MultipartFile
 
 @Tag(name = "Inventory", description = "내 주류 보관함 API")
 @RestController
@@ -124,13 +125,18 @@ class InventoryController(
         return ApiResponse.ok(inventoryService.updateLevel(userDetails.userId, id, request))
     }
 
-    @Operation(summary = "라벨 스캔", description = "MVP 단계에서는 항상 매칭 실패를 반환합니다.")
-    @PostMapping("/scan")
+    @Operation(
+        summary = "라벨 OCR 스캔",
+        description = "술병 라벨 이미지를 업로드하면 OCR로 제품명/카테고리/도수/용량을 추출합니다. " +
+            "개발/테스트 시 image 대신 ocrText 폼 필드로 원시 텍스트를 직접 전달할 수 있습니다.",
+    )
+    @PostMapping("/scan", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun scan(
         @AuthenticationPrincipal userDetails: CustomUserDetails,
-        @Valid @RequestBody(required = false) @Schema(hidden = true) request: ScanInventoryRequest?,
+        @RequestPart("image", required = false) image: MultipartFile?,
+        @RequestParam("ocrText", required = false) ocrText: String?,
     ): ApiResponse<InventoryScanResponse> {
-        return ApiResponse.ok(inventoryService.scan(userDetails.userId))
+        return ApiResponse.ok(inventoryService.scan(image, ocrText))
     }
 
     @Operation(summary = "인사이트 상세 조회")

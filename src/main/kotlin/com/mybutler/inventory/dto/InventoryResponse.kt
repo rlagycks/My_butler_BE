@@ -147,8 +147,19 @@ data class InventoryListResponse(
     }
 }
 
+/**
+ * 라벨 OCR 스캔 결과. 모든 필드 nullable — OCR이 못 뽑은 항목은 사용자가 수동 입력.
+ * FE ScanResultResponse 와 1:1 (snake_case 직렬화).
+ */
 data class InventoryScanResponse(
-    val isMatchFound: Boolean,
+    val name: String?,
+    val category: Category?,
+    val abv: BigDecimal?,
+    val capacityMl: Int?,
+    /** 0~1. 낮으면 FE에서 재확인 유도 */
+    val confidence: Double?,
+    /** OCR 원시 텍스트 (디버그/수동 보정용) */
+    val rawText: String?,
 )
 
 data class ExpiryWarningItemResponse(

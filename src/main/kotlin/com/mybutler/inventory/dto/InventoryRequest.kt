@@ -84,7 +84,3 @@ data class UpdateInventoryLevelRequest(
     val levelStatus: LevelStatus,
 )
 
-data class ScanInventoryRequest(
-    @field:Size(max = 5_000)
-    val ocrText: String? = null,
-)

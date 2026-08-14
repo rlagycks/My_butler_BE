@@ -80,13 +80,19 @@ class LabelParser {
     }
 
     // ─── 용량 (ml) ────────────────────────────────────────────────────────
-    // "700ml", "700 mL", "0.7L", "1L", "용량 750"
+    // "700ml", "700 mL", "0.7L", "1L", "용량 750", "70cl"(영국식 라벨 — 라가불린 등)
     private val mlRegex = Regex("""(\d{2,4})\s*m\s*[lℓ]""", RegexOption.IGNORE_CASE)
+    private val clRegex = Regex("""(\d{1,3})\s*c\s*[lℓ]""", RegexOption.IGNORE_CASE)
     private val literRegex = Regex("""(\d(?:\.\d{1,2})?)\s*[lℓ](?![a-z])""", RegexOption.IGNORE_CASE)
 
     private fun extractCapacityMl(text: String): Int? {
         mlRegex.find(text)?.groupValues?.get(1)?.toIntOrNull()?.let {
             if (it in 20..5000) return it
+        }
+        // cl → ml (×10). 70cl = 700ml.
+        clRegex.find(text)?.groupValues?.get(1)?.toIntOrNull()?.let {
+            val ml = it * 10
+            if (ml in 20..5000) return ml
         }
         literRegex.find(text)?.groupValues?.get(1)?.toDoubleOrNull()?.let {
             val ml = (it * 1000).toInt()
@@ -288,6 +294,12 @@ class LabelParser {
         """(?:aged\s+)?(\d{1,2})\s*years?(?:\s+old)?""",
         RegexOption.IGNORE_CASE,
     )
+    // OCR이 "AGED 16 YEARS"를 "AGED\n16\nSCOTCH\nYEARS"로 분리해버릴 때를 위한 보조 패턴.
+    // "AGED" 키워드 뒤에 숫자만 와도 인식 (years/year 없어도 OK).
+    private val ageAgedKeywordRegex = Regex(
+        """aged\s+(\d{1,2})(?!\d)""",
+        RegexOption.IGNORE_CASE,
+    )
     private val ageKoreanRegex = Regex(
         """(\d{1,2})\s*년(?:산|짜리)?(?![가-힣])""",
     )
@@ -295,6 +307,10 @@ class LabelParser {
     private fun extractAge(text: String): String? {
         // 영문 "N YEARS" 패턴
         ageStatementRegex.find(text)?.groupValues?.get(1)?.toIntOrNull()?.let {
+            if (it in 3..50) return it.toString()
+        }
+        // "AGED N" 패턴 (years/year 키워드 OCR 누락 케이스)
+        ageAgedKeywordRegex.find(text)?.groupValues?.get(1)?.toIntOrNull()?.let {
             if (it in 3..50) return it.toString()
         }
         // 한글 "N년" / "N년산" 패턴 (산속/임진강 같이 다른 한글 뒤따르는 경우 제외)
